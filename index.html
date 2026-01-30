@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대시보드 Alt4 - 2열 스플릿</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="script.js" defer></script>
+</head>
+<body class="alt4">
+<div class="nav-bar alt4-nav">
+    <div class="nav-inner">
+        <div class="nav-left">
+            <div class="nav-logo nav-home" onclick="switchTab('dashboard')">📊 반듯한시공 경영실적분석</div>
+            <div class="filter-box nav-period">
+                <div class="select-shell">
+                    <select id="monthFilter" onchange="renderAll()" aria-hidden="true">
+                        <option value="ALL">전체 보기</option>
+                    </select>
+                    <button class="select-button" id="monthSelectBtn" type="button" aria-haspopup="dialog">
+                        전체 보기
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="nav-center"></div>
+        <div class="nav-right">
+            <div class="nav-settings">
+                <button class="icon-button" id="settingsToggle" type="button" aria-label="설정">
+                    <i class="fas fa-gear"></i>
+                </button>
+                <div class="settings-menu" id="settingsMenu" aria-hidden="true">
+                    <div class="pin-panel">
+                        <div class="pin-title">판관비 설정 · 잠금설정</div>
+                        <div class="pin-row">
+                            <input type="password" id="pinInput" class="pin-input" placeholder="PIN 입력" autocomplete="off" autocapitalize="off" spellcheck="false">
+                            <button class="pin-button" id="pinUnlockBtn" type="button">잠금 해제</button>
+                        </div>
+                        <div class="pin-status" id="pinStatus">잠금됨</div>
+                    </div>
+                    <button class="settings-link" type="button" onclick="switchTab('editor')">
+                        <i class="fas fa-table"></i> 데이터 관리
+                    </button>
+                    <div class="sga-controls" id="sgaControls">
+                        <div class="toggle-container" style="border-left: 4px solid #27ae60;">
+                            <span>판관비 반영</span>
+                            <label class="switch">
+                                <input type="checkbox" id="sgaToggle" checked onchange="renderAll()">
+                                <span class="slider green-toggle"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="nav-item theme-toggle" id="themeToggle" type="button" aria-label="다크 모드 전환">
+                <i class="fas fa-moon"></i> 다크 모드
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="main-content alt4-main">
+    <div id="page-dashboard" class="page active">
+        <div class="layout-grid alt-split">
+            <div class="alt4-left-top">
+                <div id="currentRangeText" class="hero-sub" style="margin-bottom: 12px; display:none;">데이터 기준: 당월 실적</div>
+                <div class="kpi-container">
+                    <div class="kpi-card">
+                        <div class="kpi-label">총 매출액</div>
+                        <div class="kpi-value" id="kpi-revenue">0</div>
+                    </div>
+                    <div class="kpi-card profit">
+                        <div class="kpi-label" id="label-profit">순수익</div>
+                        <div class="kpi-value text-profit" id="kpi-profit">0</div>
+                    </div>
+                    <div class="kpi-card margin">
+                        <div class="kpi-label">수익률</div>
+                        <div class="kpi-value" style="color:var(--warning);" id="kpi-margin">0%</div>
+                    </div>
+                    <div class="kpi-card count">
+                        <div class="kpi-label">평균단가</div>
+                        <div class="kpi-value" id="kpi-price">0</div>
+                        <div class="kpi-sub" id="kpi-price-sub">(특이 고액건 제외)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alt4-left-bottom">
+                <div class="section alt4-chart">
+                    <div class="section-title"><span>월별 진행 건수 및 평균 단가 흐름</span></div>
+                    <div style="height: 520px; width: 100%; padding: 10px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alt4-right split-scroll">
+                <div class="section">
+                    <div class="section-title section-title-row">
+                        <span>표 보기</span>
+                        <div class="tab-buttons tab-buttons-inline">
+                            <button class="tab-button active" data-tab="tab-detail">월별 거래 상세</button>
+                            <button class="tab-button" data-tab="tab-category">분류별 실적 요약</button>
+                            <button class="tab-button sga-tab-btn" data-tab="tab-sga">판관비 지출 상세</button>
+                        </div>
+                    </div>
+                    <div class="tab-panels">
+                        <div class="tab-panel active" id="tab-detail">
+                            <table id="detailTable">
+                                <thead><tr id="detailHeaderRow"></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-panel" id="tab-category">
+                            <table id="categoryTable">
+                                <thead><tr id="categoryHeaderRow"></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-panel" id="tab-sga">
+                            <div id="sgaSection">
+                                <table id="sgaTable">
+                                    <thead><tr><th>월</th><th>계정 과목 (상세 항목)</th><th class="col-num">지출 금액 (원)</th><th class="col-num">비고</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-editor" class="page">
+        <div class="editor-container">
+            <div class="editor-controls">
+                <div>
+                    <h2>📊 데이터 관리 (Excel Mode)</h2>
+                    <p style="color:#666; font-size:0.9rem;">여기서 데이터를 직접 수정하면 대시보드에 즉시 반영됩니다.</p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span id="saveStatus" class="status-msg">✅ 저장 완료!</span>
+                    <button class="btn-add" onclick="addRow()">+ 행 추가</button>
+                    <button class="btn-reset" onclick="resetData()">↻ 초기화</button>
+                </div>
+            </div>
+            <div class="editor-upload">
+                <div>
+                    <div class="upload-title">엑셀/CSV 업로드</div>
+                    <div class="upload-desc">엑셀에서 CSV로 저장 후 업로드하세요.</div>
+                </div>
+                <div class="upload-actions">
+                    <input type="file" id="csvInput" class="file-input" accept=".csv">
+                    <button class="btn-upload" onclick="triggerCsvInput()">파일 선택</button>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="editor-table" id="editorTable">
+                    <thead>
+                        <tr>
+                            <th>삭제</th>
+                            <th>월 (YYYY-MM)</th>
+                            <th>대분류</th>
+                            <th>중분류</th>
+                            <th>소분류</th>
+                            <th>건수</th>
+                            <th>매출 (원)</th>
+                            <th>매입 (원)</th>
+                            <th>사업소득 (원)</th>
+                            <th>판관비 (원)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editorBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="monthSelectModal" aria-hidden="true">
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="월 선택">
+        <div class="modal-header">
+            <div class="modal-title">월 선택</div>
+            <button class="modal-close" id="monthSelectClose" type="button" aria-label="닫기">✕</button>
+        </div>
+        <div class="modal-list" id="monthSelectList"></div>
+    </div>
+</div>
+
+</body>
+</html>
