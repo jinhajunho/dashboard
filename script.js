@@ -250,12 +250,31 @@ function buildUnpaidHeaderMap(fields) {
     return map;
 }
 
-function parseUnpaidCsvFile(file) {
+
+function handleUnpaidCsvFileChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('CSV 파일만 업로드할 수 있습니다.');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        let text = e.target?.result;
+        if (typeof text !== 'string') return;
+        parseUnpaidCsvText(text, file.name);
+    };
+    reader.readAsText(file, 'EUC-KR');
+    event.target.value = '';
+}
+
+function parseUnpaidCsvText(csvText, fileName) {
     if (typeof Papa === 'undefined') {
         alert('CSV 파서가 로드되지 않았습니다.');
         return;
     }
-    Papa.parse(file, {
+    Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
         complete: async function(results) {
@@ -266,10 +285,10 @@ function parseUnpaidCsvFile(file) {
                 Object.keys(raw || {}).forEach(field => {
                     const key = headerMap[field];
                     if (key === 'month') {
-                    const v = String(raw[field] ?? '').trim();
-                    const m = v.match(/^(\d{4})-(\d{1,2})/);
-                    row.month = m ? `${m[1]}-${m[2].padStart(2,'0')}` : v;
-                }
+                        const v = String(raw[field] ?? '').trim();
+                        const m = v.match(/^(\d{4})-(\d{1,2})/);
+                        row.month = m ? `${m[1]}-${m[2].padStart(2,'0')}` : v;
+                    }
                     if (key === 'building_name') row.building_name = String(raw[field] ?? '').trim();
                     if (key === 'invoice_date') row.invoice_date = String(raw[field] ?? '').trim();
                     if (key === 'supply_amount') row.supply_amount = toNumber(raw[field]);
@@ -281,7 +300,7 @@ function parseUnpaidCsvFile(file) {
                 }
             });
             if (rows.length === 0) {
-                alert('유효한 미수금 데이터가 없습니다. 건물명, 매출 발행일, 공급가액 컬럼을 확인해 주세요.');
+                alert('유효한 미수금 데이터가 없습니다. 중분류가 "관리건물"이고 건물명/매출발행일/공급가액이 있는 행이 있는지 확인해 주세요. (CSV를 UTF-8로 저장해 보세요)');
                 return;
             }
             const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
@@ -317,18 +336,6 @@ function parseUnpaidCsvFile(file) {
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
         }
     });
-}
-
-function handleUnpaidCsvFileChange(event) {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-        alert('CSV 파일만 업로드할 수 있습니다.');
-        event.target.value = '';
-        return;
-    }
-    parseUnpaidCsvFile(file);
-    event.target.value = '';
 }
 
 function handleCsvFileChange(event) {
