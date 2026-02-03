@@ -169,12 +169,6 @@ function renderEditor() {
             <td><input type="number" value="${r.purchase}" onchange="editData(${idx}, 'purchase', this.value)"></td>
             <td><input type="number" value="${r.labor}" onchange="editData(${idx}, 'labor', this.value)"></td>
             <td><input type="number" value="${r.sga}" onchange="editData(${idx}, 'sga', this.value)"></td>
-            <td><input type="text" value="${escapeAttr(r.buildingName)}" onchange="editData(${idx}, 'buildingName', this.value)"></td>
-            <td><input type="text" value="${escapeAttr(r.invoiceDate)}" placeholder="YYYY-MM-DD" onchange="editData(${idx}, 'invoiceDate', this.value)"></td>
-            <td><input type="text" value="${escapeAttr(r.progressStatus)}" onchange="editData(${idx}, 'progressStatus', this.value)"></td>
-            <td><input type="text" value="${escapeAttr(r.paymentStatus)}" onchange="editData(${idx}, 'paymentStatus', this.value)"></td>
-            <td><input type="number" value="${r.paymentAmount || ''}" onchange="editData(${idx}, 'paymentAmount', this.value)"></td>
-            <td><input type="number" value="${r.supplyAmount || ''}" onchange="editData(${idx}, 'supplyAmount', this.value)"></td>
         `;
         tbody.appendChild(tr);
     });
