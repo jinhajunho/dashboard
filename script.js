@@ -238,10 +238,14 @@ function buildUnpaidHeaderMap(fields) {
     const map = {};
     (fields || []).forEach(field => {
         const key = normalizeHeader(field);
-        if (['월','month','yyyymm','date','기간'].includes(key)) map[field] = 'month';
-        if (['건물명','buildingname','building_name'].includes(key)) map[field] = 'building_name';
+        const f = String(field || '').trim();
+        if (['월','month','yyyymm','date','기간','등록일','완료일'].includes(key)) map[field] = 'month';
+        if (['건물명','buildingname','building_name','공사명','프로젝트명'].includes(key)) map[field] = 'building_name';
         if (['매출발행일','매출발행','invoicedate','invoice_date'].includes(key)) map[field] = 'invoice_date';
-        if (['공급가액','supplyamount','supply_amount'].includes(key)) map[field] = 'supply_amount';
+        if (f.includes('매출') && f.includes('발행')) map[field] = 'invoice_date';
+        if (['공급가액','supplyamount','supply_amount','매출공급','매출공급가액','매출공급가'].includes(key)) map[field] = 'supply_amount';
+        if (f.includes('매출') && f.includes('공급') && !f.includes('부가')) map[field] = 'supply_amount';
+        if (['중분류','cat2'].includes(key)) map[field] = 'cat2';
     });
     return map;
 }
@@ -261,12 +265,18 @@ function parseUnpaidCsvFile(file) {
                 const row = { month: '', building_name: '', invoice_date: '', supply_amount: 0 };
                 Object.keys(raw || {}).forEach(field => {
                     const key = headerMap[field];
-                    if (key === 'month') row.month = String(raw[field] ?? '').trim();
+                    if (key === 'month') {
+                    const v = String(raw[field] ?? '').trim();
+                    const m = v.match(/^(\d{4})-(\d{1,2})/);
+                    row.month = m ? `${m[1]}-${m[2].padStart(2,'0')}` : v;
+                }
                     if (key === 'building_name') row.building_name = String(raw[field] ?? '').trim();
                     if (key === 'invoice_date') row.invoice_date = String(raw[field] ?? '').trim();
                     if (key === 'supply_amount') row.supply_amount = toNumber(raw[field]);
+                    if (key === 'cat2') row.cat2 = String(raw[field] ?? '').trim();
                 });
-                if (row.building_name || row.invoice_date || row.supply_amount > 0) {
+                const isManaged = String(row.cat2 || '').trim() === '관리건물';
+                if (isManaged && (row.building_name || row.invoice_date || row.supply_amount > 0)) {
                     rows.push(row);
                 }
             });
