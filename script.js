@@ -7,16 +7,28 @@ let chartObserver = null;
 let chartAnimated = false;
 let editorPinValue = ''; // PIN 잠금 해제 시에만 저장, Supabase 쓰기용
 let syncDebounceTimer = null;
-const STORAGE_KEY = 'v30_dashboard_data';
+const STORAGE_KEY = 'v31_dashboard_data'; // bumped for unpaid fields
 
 const defaultData = [];
+
+function ensureUnpaidFields(row) {
+    return {
+        ...row,
+        buildingName: String(row.buildingName ?? '').trim(),
+        invoiceDate: String(row.invoiceDate ?? '').trim(),
+        progressStatus: String(row.progressStatus ?? '').trim(),
+        paymentStatus: String(row.paymentStatus ?? '').trim(),
+        paymentAmount: toNumber(row.paymentAmount),
+        supplyAmount: toNumber(row.supplyAmount)
+    };
+}
 
 function isSupabaseConfigured() {
     return !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY);
 }
 
 function dbRowToLocal(row) {
-    return {
+    return ensureUnpaidFields({
         month: String(row.month ?? ''),
         cat1: String(row.cat1 ?? ''),
         cat2: String(row.cat2 ?? ''),
@@ -25,27 +37,54 @@ function dbRowToLocal(row) {
         rev: Number(row.rev) || 0,
         purchase: Number(row.purchase) || 0,
         labor: Number(row.labor) || 0,
-        sga: Number(row.sga) || 0
-    };
+        sga: Number(row.sga) || 0,
+        buildingName: row.building_name ?? row.buildingName ?? '',
+        invoiceDate: row.invoice_date ?? row.invoiceDate ?? '',
+        progressStatus: row.progress_status ?? row.progressStatus ?? '',
+        paymentStatus: row.payment_status ?? row.paymentStatus ?? '',
+        paymentAmount: row.payment_amount ?? row.paymentAmount ?? 0,
+        supplyAmount: row.supply_amount ?? row.supplyAmount ?? 0
+    });
 }
 
 async function loadData() {
     if (isSupabaseConfigured() && window.supabaseClient) {
         try {
-            const { data, error } = await window.supabaseClient
-                .from('dashboard_rows')
-                .select('month,cat1,cat2,cat3,count,rev,purchase,labor,sga')
-                .order('month');
-            if (!error && Array.isArray(data) && data.length > 0) {
-                globalData = data.map(dbRowToLocal);
-                return;
-            }
+            const [dashRes, unpaidRes] = await Promise.all([
+                window.supabaseClient.from('dashboard_rows').select('month,cat1,cat2,cat3,count,rev,purchase,labor,sga').order('month'),
+                window.supabaseClient.from('unpaid_items').select('*').order('month')
+            ]);
+            const dashData = dashRes.data || [];
+            const unpaidRaw = unpaidRes.data || [];
+            const unpaidData = unpaidRaw.map(r => ensureUnpaidFields({
+                month: r.month ?? '',
+                cat1: '',
+                cat2: '관리건물',
+                cat3: '',
+                count: 1,
+                rev: Number(r.supply_amount) || 0,
+                purchase: 0,
+                labor: 0,
+                sga: 0,
+                buildingName: r.building_name ?? '',
+                invoiceDate: r.invoice_date ?? '',
+                progressStatus: r.progress_status ?? '',
+                paymentStatus: r.payment_status ?? '',
+                paymentAmount: Number(r.payment_amount) || 0,
+                supplyAmount: Number(r.supply_amount) || 0
+            }));
+            const withoutUnpaid = dashData.filter(r => String(r.cat2 || '').trim() !== '관리건물');
+            globalData = withoutUnpaid.map(r => dbRowToLocal({ ...r, building_name: '', invoice_date: '', progress_status: '', payment_status: '', payment_amount: 0, supply_amount: 0 }));
+            unpaidData.forEach(u => globalData.push(u));
+            globalData.sort((a, b) => a.month.localeCompare(b.month));
+            return;
         } catch (e) {
             console.warn('Supabase load failed', e);
         }
     }
     const saved = localStorage.getItem(STORAGE_KEY);
     globalData = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
+    globalData = globalData.map(ensureUnpaidFields);
 }
 
 window.onload = async function() {
@@ -105,6 +144,8 @@ function switchTab(tabName) {
     if (tabName === 'dashboard') {
         updateDataFromEditor();
         renderAll();
+    } else if (tabName === 'unpaid') {
+        renderUnpaid();
     } else {
         renderEditor();
     }
@@ -115,26 +156,33 @@ function renderEditor() {
     const tbody = document.getElementById('editorBody');
     tbody.innerHTML = '';
     globalData.forEach((row, idx) => {
+        const r = ensureUnpaidFields(row);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="text-align:center;"><button class="btn-del" onclick="deleteRow(${idx})">✖</button></td>
-            <td><input type="text" value="${row.month}" onchange="editData(${idx}, 'month', this.value)"></td>
-            <td><input type="text" value="${row.cat1}" onchange="editData(${idx}, 'cat1', this.value)"></td>
-            <td><input type="text" value="${row.cat2}" onchange="editData(${idx}, 'cat2', this.value)"></td>
-            <td><input type="text" value="${row.cat3}" onchange="editData(${idx}, 'cat3', this.value)"></td>
-            <td><input type="number" value="${row.count}" onchange="editData(${idx}, 'count', this.value)"></td>
-            <td><input type="number" value="${row.rev}" onchange="editData(${idx}, 'rev', this.value)"></td>
-            <td><input type="number" value="${row.purchase}" onchange="editData(${idx}, 'purchase', this.value)"></td>
-            <td><input type="number" value="${row.labor}" onchange="editData(${idx}, 'labor', this.value)"></td>
-            <td><input type="number" value="${row.sga}" onchange="editData(${idx}, 'sga', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.month)}" onchange="editData(${idx}, 'month', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat1)}" onchange="editData(${idx}, 'cat1', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat2)}" onchange="editData(${idx}, 'cat2', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat3)}" onchange="editData(${idx}, 'cat3', this.value)"></td>
+            <td><input type="number" value="${r.count}" onchange="editData(${idx}, 'count', this.value)"></td>
+            <td><input type="number" value="${r.rev}" onchange="editData(${idx}, 'rev', this.value)"></td>
+            <td><input type="number" value="${r.purchase}" onchange="editData(${idx}, 'purchase', this.value)"></td>
+            <td><input type="number" value="${r.labor}" onchange="editData(${idx}, 'labor', this.value)"></td>
+            <td><input type="number" value="${r.sga}" onchange="editData(${idx}, 'sga', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.buildingName)}" onchange="editData(${idx}, 'buildingName', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.invoiceDate)}" placeholder="YYYY-MM-DD" onchange="editData(${idx}, 'invoiceDate', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.progressStatus)}" onchange="editData(${idx}, 'progressStatus', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.paymentStatus)}" onchange="editData(${idx}, 'paymentStatus', this.value)"></td>
+            <td><input type="number" value="${r.paymentAmount || ''}" onchange="editData(${idx}, 'paymentAmount', this.value)"></td>
+            <td><input type="number" value="${r.supplyAmount || ''}" onchange="editData(${idx}, 'supplyAmount', this.value)"></td>
         `;
         tbody.appendChild(tr);
     });
 }
 
 function editData(idx, key, val) {
-    // 숫자 필드는 숫자로 변환
-    if(['count','rev','purchase','labor','sga'].includes(key)) {
+    const numKeys = ['count','rev','purchase','labor','sga','paymentAmount','supplyAmount'];
+    if (numKeys.includes(key)) {
         globalData[idx][key] = Number(val) || 0;
     } else {
         globalData[idx][key] = val;
@@ -146,7 +194,10 @@ function addRow() {
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
-    globalData.push({month:`${yyyy}-${mm}`, cat1:"", cat2:"", cat3:"", count:0, rev:0, purchase:0, labor:0, sga:0});
+    globalData.push({
+        month:`${yyyy}-${mm}`, cat1:"", cat2:"", cat3:"", count:0, rev:0, purchase:0, labor:0, sga:0,
+        buildingName:"", invoiceDate:"", progressStatus:"", paymentStatus:"", paymentAmount:0, supplyAmount:0
+    });
     renderEditor();
     saveToLocal();
 }
@@ -205,12 +256,13 @@ function parseCsvFile(file) {
                 alert('유효한 데이터가 없습니다. 헤더와 내용을 확인해 주세요.');
                 return;
             }
-            globalData = globalData.concat(rows);
+            globalData = rows.map(ensureUnpaidFields);
             updateDataFromEditor();
             renderEditor();
             saveToLocal();
             renderAll();
-            alert('CSV 업로드가 완료되었습니다. 기존 데이터에 추가되었습니다.');
+            renderUnpaid();
+            alert('CSV 업로드가 완료되었습니다. 기존 데이터가 업로드 파일로 초기화되었습니다.');
         },
         error: function() {
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
@@ -243,6 +295,12 @@ function buildHeaderMap(fields) {
         if (['매입','매입원','purchase','cost'].includes(key)) map[field] = 'purchase';
         if (['사업소득','노무비','labor'].includes(key)) map[field] = 'labor';
         if (['판관비','sga'].includes(key)) map[field] = 'sga';
+        if (['건물명','buildingname'].includes(key)) map[field] = 'buildingName';
+        if (['매출발행일','매출발행','invoicedate'].includes(key)) map[field] = 'invoiceDate';
+        if (['진행상태','progressstatus'].includes(key)) map[field] = 'progressStatus';
+        if (['수금상태','paymentstatus'].includes(key)) map[field] = 'paymentStatus';
+        if (['수금액','paymentamount'].includes(key)) map[field] = 'paymentAmount';
+        if (['공급가액','supplyamount'].includes(key)) map[field] = 'supplyAmount';
     });
     return map;
 }
@@ -257,7 +315,10 @@ function normalizeHeader(text) {
 }
 
 function mapCsvRow(raw, headerMap) {
-    const row = { month: '', cat1: '', cat2: '', cat3: '', count: 0, rev: 0, purchase: 0, labor: 0, sga: 0 };
+    const row = {
+        month: '', cat1: '', cat2: '', cat3: '', count: 0, rev: 0, purchase: 0, labor: 0, sga: 0,
+        buildingName: '', invoiceDate: '', progressStatus: '', paymentStatus: '', paymentAmount: 0, supplyAmount: 0
+    };
 
     Object.keys(raw || {}).forEach(field => {
         const mappedKey = headerMap[field];
@@ -276,8 +337,14 @@ function mapCsvRow(raw, headerMap) {
     row.cat1 = String(row.cat1 || '').trim();
     row.cat2 = String(row.cat2 || '').trim();
     row.cat3 = String(row.cat3 || '').trim();
+    row.buildingName = String(row.buildingName || '').trim();
+    row.invoiceDate = String(row.invoiceDate || '').trim();
+    row.progressStatus = String(row.progressStatus || '').trim();
+    row.paymentStatus = String(row.paymentStatus || '').trim();
+    row.paymentAmount = toNumber(row.paymentAmount);
+    row.supplyAmount = toNumber(row.supplyAmount);
 
-    return row;
+    return ensureUnpaidFields(row);
 }
 
 function toNumber(value) {
@@ -286,10 +353,15 @@ function toNumber(value) {
     return Number(cleaned) || 0;
 }
 
+function escapeAttr(val) {
+    return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function saveToLocal() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(globalData));
     showSaveMsg();
     syncToSupabaseDebounced();
+    renderUnpaid();
 }
 
 function syncToSupabaseDebounced() {
@@ -568,6 +640,42 @@ function shouldExcludeFromAvg(row, useSmartAvg, limit, unitPrice) {
     if (String(row.cat3 || '').trim() === '공사') return true;
     if (!useSmartAvg) return false;
     return unitPrice >= limit;
+}
+
+function renderUnpaid() {
+    const filtered = globalData.filter(row => {
+        const r = ensureUnpaidFields(row);
+        if (String(r.cat2 || '').trim() !== '관리건물') return false;
+        const building = String(r.buildingName || '').trim();
+        const supply = Number(r.supplyAmount) || 0;
+        if (!building && supply === 0) return false;
+        return true;
+    });
+
+    const tbody = document.getElementById('unpaidTableBody');
+    const summaryEl = document.getElementById('unpaidSummary');
+    if (!tbody || !summaryEl) return;
+
+    let html = '';
+    let totalSupply = 0;
+    filtered.forEach((row, idx) => {
+        const r = ensureUnpaidFields(row);
+        const supply = Number(r.supplyAmount) || 0;
+        totalSupply += supply;
+        html += `<tr>
+            <td class="col-center">${idx + 1}</td>
+            <td>${escapeAttr(r.buildingName) || '-'}</td>
+            <td>${escapeAttr(r.invoiceDate) || '-'}</td>
+            <td class="col-num">${supply.toLocaleString()}</td>
+        </tr>`;
+    });
+
+    if (filtered.length === 0) {
+        html = '<tr><td colspan="4" style="text-align:center; padding:20px;">미수 건이 없습니다.</td></tr>';
+    }
+
+    tbody.innerHTML = html;
+    summaryEl.textContent = `공급가액 합계: ${totalSupply.toLocaleString()}원 (VAT 별도)`;
 }
 
 function getKoreaYearMonth() {

@@ -47,6 +47,9 @@
                     <button class="settings-link" type="button" onclick="switchTab('editor')">
                         <i class="fas fa-table"></i> 데이터 관리
                     </button>
+                    <button class="settings-link" type="button" onclick="switchTab('unpaid')">
+                        <i class="fas fa-file-invoice-dollar"></i> 미수금 정산 관리
+                    </button>
                     <div class="sga-controls" id="sgaControls">
                         <div class="toggle-container" style="border-left: 4px solid #27ae60;">
                             <span>판관비 반영</span>
@@ -137,6 +140,33 @@
         </div>
     </div>
 
+    <div id="page-unpaid" class="page">
+        <div class="unpaid-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+            <h2 style="margin-bottom: 20px;">미수금 정산 관리</h2>
+            <div class="section">
+                <div class="section-title">
+                    <span>관리건물 · 완료된 미수 건</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="unpaidTable" class="editor-table">
+                        <thead>
+                            <tr>
+                                <th>순번</th>
+                                <th>건물명</th>
+                                <th>매출 발행일</th>
+                                <th class="col-num">공급가액 (VAT 별도)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unpaidTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
+                    공급가액 합계: 0원 (VAT 별도)
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="page-editor" class="page">
         <div class="editor-container">
             <div class="editor-controls">
@@ -174,6 +204,12 @@
                             <th>매입 (원)</th>
                             <th>사업소득 (원)</th>
                             <th>판관비 (원)</th>
+                            <th>건물명</th>
+                            <th>매출 발행일</th>
+                            <th>진행상태</th>
+                            <th>수금상태</th>
+                            <th>수금액 (원)</th>
+                            <th>공급가액 (원)</th>
                         </tr>
                     </thead>
                     <tbody id="editorBody"></tbody>

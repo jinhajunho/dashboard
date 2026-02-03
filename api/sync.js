@@ -3,9 +3,10 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const TABLE = 'dashboard_rows';
+const TABLE_DASHBOARD = 'dashboard_rows';
+const TABLE_UNPAID = 'unpaid_items';
 
-function rowToDb(row) {
+function rowToDashboard(row) {
   return {
     month: String(row.month ?? ''),
     cat1: String(row.cat1 ?? ''),
@@ -17,6 +18,24 @@ function rowToDb(row) {
     labor: Number(row.labor) || 0,
     sga: Number(row.sga) || 0,
   };
+}
+
+function rowToUnpaid(row) {
+  return {
+    month: String(row.month ?? ''),
+    building_name: String(row.buildingName ?? row.building_name ?? '').trim(),
+    invoice_date: String(row.invoiceDate ?? row.invoice_date ?? '').trim(),
+    supply_amount: Number(row.supplyAmount ?? row.supply_amount) || 0,
+  };
+}
+
+function isUnpaidEligible(row) {
+  if (String(row.cat2 ?? '').trim() !== '관리건물') return false;
+  const building = String(row.buildingName ?? row.building_name ?? '').trim();
+  const invDate = String(row.invoiceDate ?? row.invoice_date ?? '').trim();
+  const supplyAmt = Number(row.supplyAmount ?? row.supply_amount) || 0;
+  if (!building && !invDate && supplyAmt === 0) return false;
+  return true;
 }
 
 module.exports = async (req, res) => {
@@ -53,27 +72,38 @@ module.exports = async (req, res) => {
   }
 
   const rows = Array.isArray(data) ? data : [];
-  const toInsert = rows.map(rowToDb);
+  const toDashboard = rows.map(rowToDashboard);
+  const toUnpaid = rows.filter(isUnpaidEligible).map(rowToUnpaid);
 
   const supabase = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
 
   try {
-    const { error: delErr } = await supabase.from(TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error: delErr } = await supabase.from(TABLE_DASHBOARD).delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (delErr) {
       console.error(delErr);
       return res.status(500).json({ error: 'Delete failed', detail: delErr.message });
     }
-
-    if (toInsert.length === 0) {
-      return res.status(200).json({ ok: true });
+    if (toDashboard.length > 0) {
+      const { error: insertErr } = await supabase.from(TABLE_DASHBOARD).insert(toDashboard);
+      if (insertErr) {
+        console.error(insertErr);
+        return res.status(500).json({ error: 'Insert failed', detail: insertErr.message });
+      }
     }
 
-    const { error: insertErr } = await supabase.from(TABLE).insert(toInsert);
-    if (insertErr) {
-      console.error(insertErr);
-      return res.status(500).json({ error: 'Insert failed', detail: insertErr.message });
+    const { error: delUnpaidErr } = await supabase.from(TABLE_UNPAID).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (delUnpaidErr) {
+      console.error(delUnpaidErr);
+      return res.status(500).json({ error: 'Unpaid delete failed', detail: delUnpaidErr.message });
+    }
+    if (toUnpaid.length > 0) {
+      const { error: insertUnpaidErr } = await supabase.from(TABLE_UNPAID).insert(toUnpaid);
+      if (insertUnpaidErr) {
+        console.error(insertUnpaidErr);
+        return res.status(500).json({ error: 'Unpaid insert failed', detail: insertUnpaidErr.message });
+      }
     }
 
     return res.status(200).json({ ok: true });

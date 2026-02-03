@@ -14,7 +14,8 @@
 ## 1. Supabase 설정
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. **SQL Editor**에서 `supabase/schema.sql` 내용 실행 (테이블·RLS 생성)
-3. **Settings → API**에서 확인:
+3. **기존 프로젝트**: `supabase/migrations/20260203_unpaid_items_table.sql` 실행 (unpaid_items 테이블 생성, dashboard_rows 정리)
+4. **Settings → API**에서 확인 (Project URL, anon key, service_role key):
    - Project URL → `SUPABASE_URL`
    - anon public key → `SUPABASE_ANON_KEY` (프론트 읽기용)
    - service_role key → `SUPABASE_SERVICE_ROLE_KEY` (API 쓰기용, **절대 노출 금지**)
@@ -42,7 +43,7 @@
 엑셀에서 **CSV로 저장** 후 업로드하세요. 첫 줄에 헤더가 있어야 합니다.
 
 권장 헤더: `month,cat1,cat2,cat3,count,rev,purchase,labor,sga`  
-한국어 허용: `월`, `대분류`, `중분류`, `소분류`, `건수`, `매출`, `매입`, `사업소득`, `판관비`
+미수금 기능용: `건물명`, `매출 발행일`, `진행상태`, `수금상태`, `수금액`, `공급가액`
 
 ## 5. 동작 요약
 - **읽기**: Supabase `dashboard_rows` 테이블 (anon 키로 조회). `config.js` 없으면 localStorage 사용
