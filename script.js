@@ -101,6 +101,10 @@ window.onload = async function() {
     if (csvInput) {
         csvInput.addEventListener('change', handleCsvFileChange);
     }
+    const unpaidCsvInput = document.getElementById('unpaidCsvInput');
+    if (unpaidCsvInput) {
+        unpaidCsvInput.addEventListener('change', handleUnpaidCsvFileChange);
+    }
 
     setupTheme();
     setupMonthSelect();
@@ -221,6 +225,100 @@ function triggerCsvInput() {
     if (csvInput) {
         csvInput.click();
     }
+}
+
+function triggerUnpaidCsvInput() {
+    const unpaidCsvInput = document.getElementById('unpaidCsvInput');
+    if (unpaidCsvInput) {
+        unpaidCsvInput.click();
+    }
+}
+
+function buildUnpaidHeaderMap(fields) {
+    const map = {};
+    (fields || []).forEach(field => {
+        const key = normalizeHeader(field);
+        if (['월','month','yyyymm','date','기간'].includes(key)) map[field] = 'month';
+        if (['건물명','buildingname','building_name'].includes(key)) map[field] = 'building_name';
+        if (['매출발행일','매출발행','invoicedate','invoice_date'].includes(key)) map[field] = 'invoice_date';
+        if (['공급가액','supplyamount','supply_amount'].includes(key)) map[field] = 'supply_amount';
+    });
+    return map;
+}
+
+function parseUnpaidCsvFile(file) {
+    if (typeof Papa === 'undefined') {
+        alert('CSV 파서가 로드되지 않았습니다.');
+        return;
+    }
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const headerMap = buildUnpaidHeaderMap(results.meta && results.meta.fields);
+            const rows = [];
+            (results.data || []).forEach(raw => {
+                const row = { month: '', building_name: '', invoice_date: '', supply_amount: 0 };
+                Object.keys(raw || {}).forEach(field => {
+                    const key = headerMap[field];
+                    if (key === 'month') row.month = String(raw[field] ?? '').trim();
+                    if (key === 'building_name') row.building_name = String(raw[field] ?? '').trim();
+                    if (key === 'invoice_date') row.invoice_date = String(raw[field] ?? '').trim();
+                    if (key === 'supply_amount') row.supply_amount = toNumber(raw[field]);
+                });
+                if (row.building_name || row.invoice_date || row.supply_amount > 0) {
+                    rows.push(row);
+                }
+            });
+            if (rows.length === 0) {
+                alert('유효한 미수금 데이터가 없습니다. 건물명, 매출 발행일, 공급가액 컬럼을 확인해 주세요.');
+                return;
+            }
+            const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
+            if (!unlocked || !editorPinValue) {
+                alert('미수금 업로드는 PIN 잠금 해제 후 가능합니다. 설정에서 잠금을 해제해 주세요.');
+                return;
+            }
+            const apiBase = window.API_BASE_URL || '';
+            try {
+                const res = await fetch(apiBase + '/api/sync-unpaid', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: editorPinValue, data: rows })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        alert('PIN이 올바르지 않습니다. 다시 잠금 해제해 주세요.');
+                    } else {
+                        alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
+                    }
+                    return;
+                }
+                await loadData();
+                renderUnpaid();
+                alert('미수금 데이터가 업로드되었습니다. (' + rows.length + '건)');
+            } catch (e) {
+                console.error(e);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        },
+        error: function() {
+            alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+function handleUnpaidCsvFileChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('CSV 파일만 업로드할 수 있습니다.');
+        event.target.value = '';
+        return;
+    }
+    parseUnpaidCsvFile(file);
+    event.target.value = '';
 }
 
 function handleCsvFileChange(event) {

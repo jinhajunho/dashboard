@@ -143,6 +143,16 @@
     <div id="page-unpaid" class="page">
         <div class="unpaid-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
             <h2 style="margin-bottom: 20px;">미수금 정산 관리</h2>
+            <div class="editor-upload" style="margin-bottom: 24px;">
+                <div>
+                    <div class="upload-title">미수금 CSV 업로드</div>
+                    <div class="upload-desc">건물명, 매출 발행일, 공급가액 컬럼이 포함된 CSV를 업로드하세요. 업로드 시 기존 미수금 데이터가 교체됩니다.</div>
+                </div>
+                <div class="upload-actions">
+                    <input type="file" id="unpaidCsvInput" class="file-input" accept=".csv">
+                    <button class="btn-upload" onclick="triggerUnpaidCsvInput()">파일 선택</button>
+                </div>
+            </div>
             <div class="section">
                 <div class="section-title">
                     <span>관리건물 · 완료된 미수 건</span>
