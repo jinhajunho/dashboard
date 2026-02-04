@@ -438,6 +438,7 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                     clearTimeout(timeout);
                     console.warn('주간보고 Supabase 저장 오류:', e);
                 });
+            }
             } catch (err) {
                 console.error('주간보고 파싱 오류:', err);
                 const el = document.getElementById('weeklyReportEmpty');
