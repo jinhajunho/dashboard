@@ -240,7 +240,7 @@ function buildUnpaidHeaderMap(fields) {
         const key = normalizeHeader(field);
         const f = String(field || '').trim();
         if (['월','month','yyyymm','date','기간','등록일','완료일'].includes(key)) map[field] = 'month';
-        if (['건물명','buildingname','building_name','공사명','프로젝트명'].includes(key)) map[field] = 'building_name';
+        if (['건물명','buildingname','building_name'].includes(key)) map[field] = 'building_name';
         if (['매출발행일','매출발행','invoicedate','invoice_date'].includes(key)) map[field] = 'invoice_date';
         if (f.includes('매출') && f.includes('발행')) map[field] = 'invoice_date';
         if (['공급가액','supplyamount','supply_amount','매출공급','매출공급가액','매출공급가'].includes(key)) map[field] = 'supply_amount';
