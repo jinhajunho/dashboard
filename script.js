@@ -423,8 +423,7 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
 
             renderWeekly();
 
-            const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
-            const willSave = isSupabaseConfigured() && unlocked && editorPinValue;
+            const willSave = isSupabaseConfigured();
 
             if (willSave) {
                 const apiBase = window.API_BASE_URL || '';
@@ -433,22 +432,22 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                 fetch(apiBase + '/api/sync-weekly', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData }),
+                    body: JSON.stringify({ data: weeklyReportData }),
                     signal: ctrl.signal
                 }).then(res => {
                     clearTimeout(timeout);
                     if (res.ok) {
                         alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n다른 기기에서도 확인할 수 있습니다.');
                     } else {
-                        alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. PIN 확인 후 다시 업로드해 주세요.');
+                        alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크를 확인해 주세요.');
                     }
                 }).catch(e => {
                     clearTimeout(timeout);
                     console.warn('주간보고 Supabase 저장 오류:', e);
-                    alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크/PIN 확인 후 다시 업로드해 주세요.');
+                    alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크를 확인해 주세요.');
                 });
             } else {
-                alert('주간보고가 표시되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 다른 기기 동기화를 위해 설정에서 PIN을 입력한 뒤 다시 업로드해 주세요.');
+                alert('주간보고가 표시되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
             }
             } catch (err) {
                 console.error('주간보고 파싱 오류:', err);
