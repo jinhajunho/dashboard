@@ -286,20 +286,16 @@ function getKoreaWeekRange() {
     const nextSunday = new Date(nextMonday);
     nextSunday.setDate(nextMonday.getDate() + 6);
     const pad = n => String(n).padStart(2, '0');
-    const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(lastMonday.getDate() - 7);
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastSunday.getDate() + 6);
-    const lastWeekStart = `${lastMonday.getFullYear()}-${pad(lastMonday.getMonth() + 1)}-${pad(lastMonday.getDate())}`;
-    const lastWeekEnd = `${lastSunday.getFullYear()}-${pad(lastSunday.getMonth() + 1)}-${pad(lastSunday.getDate())}`;
     const thisWeekStart = `${thisMonday.getFullYear()}-${pad(thisMonday.getMonth() + 1)}-${pad(thisMonday.getDate())}`;
     const thisWeekEnd = `${thisSunday.getFullYear()}-${pad(thisSunday.getMonth() + 1)}-${pad(thisSunday.getDate())}`;
+    const nextWeekStart = `${nextMonday.getFullYear()}-${pad(nextMonday.getMonth() + 1)}-${pad(nextMonday.getDate())}`;
+    const nextWeekEnd = `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}`;
     return {
-        lastWeekStart,
-        lastWeekEnd,
         thisWeekStart,
         thisWeekEnd,
-        weekLabel: `완료: ${lastWeekStart}~${lastWeekEnd} / 예정: ${thisWeekStart}~${thisWeekEnd}`
+        nextWeekStart,
+        nextWeekEnd,
+        weekLabel: `완료: ${thisWeekStart}~${thisWeekEnd} / 예정: ${nextWeekStart}~${nextWeekEnd}`
     };
 }
 
@@ -399,9 +395,9 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                 if (!building && !project) return;
                 const label = (building && project) ? `${building} - ${project}` : (building || project || '-');
                 const item = { building: building || '-', project: project || '-', label };
-                if (status === '완료' && isDateInWeek(row.completion_date, week.lastWeekStart, week.lastWeekEnd)) {
+                if (status === '완료' && isDateInWeek(row.completion_date, week.thisWeekStart, week.thisWeekEnd)) {
                     complete.push(item);
-                } else if (status === '진행' && isDateInWeek(row.progress_date, week.thisWeekStart, week.thisWeekEnd)) {
+                } else if (status === '진행' && isDateInWeek(row.progress_date, week.nextWeekStart, week.nextWeekEnd)) {
                     scheduled.push(item);
                 }
             });
@@ -415,22 +411,22 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                     reader.onload = function(e) {
                         const text = e.target?.result;
                         if (typeof text === 'string') parseWeeklyCsvText(text, fileName, null, null);
-                        else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 지난 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 이번 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
+                        else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
                     };
                     reader.readAsText(file, 'EUC-KR');
                     return;
                 }
                 const headers = (results.meta && results.meta.fields) ? results.meta.fields.slice(0, 8).join(', ') : '(없음)';
-                alert('조건에 맞는 데이터가 없습니다.\n\nCSV ' + rawRows.length + '행 읽음. 컬럼: ' + headers + '\n\n• 완료건: 진행상태=완료, 완료일이 지난 주\n• 예정건: 진행상태=진행, 진행일이 이번 주\n• 필요: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nExcel에서 "다른 이름으로 저장" → CSV UTF-8(쉼표로 분리)로 저장해 보세요.');
+                alert('조건에 맞는 데이터가 없습니다.\n\nCSV ' + rawRows.length + '행 읽음. 컬럼: ' + headers + '\n\n• 완료건: 진행상태=완료, 완료일이 이번 주\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nExcel에서 "다른 이름으로 저장" → CSV UTF-8(쉼표로 분리)로 저장해 보세요.');
                 return;
             }
 
             renderWeekly();
-            alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
 
-            if (isSupabaseConfigured()) {
-                const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
-                if (!unlocked || !editorPinValue) return;
+            const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
+            const willSave = isSupabaseConfigured() && unlocked && editorPinValue;
+
+            if (willSave) {
                 const apiBase = window.API_BASE_URL || '';
                 const ctrl = new AbortController();
                 const timeout = setTimeout(() => ctrl.abort(), 15000);
@@ -441,11 +437,18 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                     signal: ctrl.signal
                 }).then(res => {
                     clearTimeout(timeout);
-                    if (!res.ok) console.warn('주간보고 저장 실패:', res.status);
+                    if (res.ok) {
+                        alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n다른 기기에서도 확인할 수 있습니다.');
+                    } else {
+                        alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. PIN 확인 후 다시 업로드해 주세요.');
+                    }
                 }).catch(e => {
                     clearTimeout(timeout);
                     console.warn('주간보고 Supabase 저장 오류:', e);
+                    alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크/PIN 확인 후 다시 업로드해 주세요.');
                 });
+            } else {
+                alert('주간보고가 표시되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 다른 기기 동기화를 위해 설정에서 PIN을 입력한 뒤 다시 업로드해 주세요.');
             }
             } catch (err) {
                 console.error('주간보고 파싱 오류:', err);
@@ -1228,7 +1231,7 @@ function setupSgaPin() {
     const pinStatus = document.getElementById('pinStatus');
     const sgaControls = document.getElementById('sgaControls');
     const sgaToggle = document.getElementById('sgaToggle');
-    const settingsLink = document.querySelector('.settings-link');
+    const editorLink = document.getElementById('editorSettingsLink');
     if (!pinInput || !pinBtn || !pinStatus || !sgaControls || !sgaToggle) return;
 
     const ADMIN_PIN = '1234';
@@ -1263,9 +1266,7 @@ function setupSgaPin() {
         pinStatus.textContent = isUnlocked ? '잠금 해제됨' : '잠금됨';
         pinBtn.textContent = isUnlocked ? '잠금' : '잠금 해제';
         sgaControls.classList.toggle('is-open', isUnlocked);
-        if (settingsLink) {
-            settingsLink.style.display = isUnlocked ? 'flex' : 'none';
-        }
+        if (editorLink) editorLink.style.display = isUnlocked ? 'flex' : 'none';
     }
 }
 
