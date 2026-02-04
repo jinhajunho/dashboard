@@ -246,6 +246,8 @@ function buildUnpaidHeaderMap(fields) {
         if (['공급가액','supplyamount','supply_amount','매출공급','매출공급가액','매출공급가'].includes(key)) map[field] = 'supply_amount';
         if (f.includes('매출') && f.includes('공급') && !f.includes('부가')) map[field] = 'supply_amount';
         if (['중분류','cat2'].includes(key)) map[field] = 'cat2';
+        if (['수금상태','수금현황','paymentstatus'].includes(key)) map[field] = 'payment_status';
+        if (['수금액','paymentamount'].includes(key)) map[field] = 'payment_amount';
     });
     return map;
 }
@@ -293,9 +295,18 @@ function parseUnpaidCsvText(csvText, fileName) {
                     if (key === 'invoice_date') row.invoice_date = String(raw[field] ?? '').trim();
                     if (key === 'supply_amount') row.supply_amount = toNumber(raw[field]);
                     if (key === 'cat2') row.cat2 = String(raw[field] ?? '').trim();
+                    if (key === 'payment_status') row.payment_status = String(raw[field] ?? '').trim();
+                    if (key === 'payment_amount') row.payment_amount = toNumber(raw[field]);
                 });
                 const isManaged = String(row.cat2 || '').trim() === '관리건물';
-                if (isManaged && (row.building_name || row.invoice_date || row.supply_amount > 0)) {
+                const hasInvoiceDate = String(row.invoice_date || '').trim().length > 0;
+                const payStatus = String(row.payment_status || '').trim();
+                const payAmtField = Object.keys(raw || {}).find(f => headerMap[f] === 'payment_amount');
+                const payAmtVal = payAmtField != null ? raw[payAmtField] : null;
+                const payAmtEmpty = payAmtVal === '' || payAmtVal == null || String(payAmtVal).trim() === '';
+                const payAmt = toNumber(payAmtVal);
+                const isUnpaid = hasInvoiceDate && (payStatus === '미수' || payAmt === 0 || payAmtEmpty);
+                if (isManaged && isUnpaid && (row.building_name || row.invoice_date || row.supply_amount > 0)) {
                     rows.push(row);
                 }
             });
