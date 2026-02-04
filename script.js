@@ -286,16 +286,20 @@ function getKoreaWeekRange() {
     const nextSunday = new Date(nextMonday);
     nextSunday.setDate(nextMonday.getDate() + 6);
     const pad = n => String(n).padStart(2, '0');
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(lastMonday.getDate() - 7);
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastSunday.getDate() + 6);
+    const lastWeekStart = `${lastMonday.getFullYear()}-${pad(lastMonday.getMonth() + 1)}-${pad(lastMonday.getDate())}`;
+    const lastWeekEnd = `${lastSunday.getFullYear()}-${pad(lastSunday.getMonth() + 1)}-${pad(lastSunday.getDate())}`;
     const thisWeekStart = `${thisMonday.getFullYear()}-${pad(thisMonday.getMonth() + 1)}-${pad(thisMonday.getDate())}`;
     const thisWeekEnd = `${thisSunday.getFullYear()}-${pad(thisSunday.getMonth() + 1)}-${pad(thisSunday.getDate())}`;
-    const nextWeekStart = `${nextMonday.getFullYear()}-${pad(nextMonday.getMonth() + 1)}-${pad(nextMonday.getDate())}`;
-    const nextWeekEnd = `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}`;
     return {
+        lastWeekStart,
+        lastWeekEnd,
         thisWeekStart,
         thisWeekEnd,
-        nextWeekStart,
-        nextWeekEnd,
-        weekLabel: `${thisWeekStart} ~ ${thisWeekEnd}`
+        weekLabel: `완료: ${lastWeekStart}~${lastWeekEnd} / 예정: ${thisWeekStart}~${thisWeekEnd}`
     };
 }
 
@@ -395,9 +399,9 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                 if (!building && !project) return;
                 const label = (building && project) ? `${building} - ${project}` : (building || project || '-');
                 const item = { building: building || '-', project: project || '-', label };
-                if (status === '완료' && isDateInWeek(row.completion_date, week.thisWeekStart, week.thisWeekEnd)) {
+                if (status === '완료' && isDateInWeek(row.completion_date, week.lastWeekStart, week.lastWeekEnd)) {
                     complete.push(item);
-                } else if (status === '진행' && isDateInWeek(row.progress_date, week.nextWeekStart, week.nextWeekEnd)) {
+                } else if (status === '진행' && isDateInWeek(row.progress_date, week.thisWeekStart, week.thisWeekEnd)) {
                     scheduled.push(item);
                 }
             });
@@ -411,13 +415,13 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                     reader.onload = function(e) {
                         const text = e.target?.result;
                         if (typeof text === 'string') parseWeeklyCsvText(text, fileName, null, null);
-                        else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
+                        else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 지난 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 이번 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
                     };
                     reader.readAsText(file, 'EUC-KR');
                     return;
                 }
                 const headers = (results.meta && results.meta.fields) ? results.meta.fields.slice(0, 8).join(', ') : '(없음)';
-                alert('조건에 맞는 데이터가 없습니다.\n\nCSV ' + rawRows.length + '행 읽음. 컬럼: ' + headers + '\n\n• 완료건: 진행상태=완료, 완료일이 이번 주\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nExcel에서 "다른 이름으로 저장" → CSV UTF-8(쉼표로 분리)로 저장해 보세요.');
+                alert('조건에 맞는 데이터가 없습니다.\n\nCSV ' + rawRows.length + '행 읽음. 컬럼: ' + headers + '\n\n• 완료건: 진행상태=완료, 완료일이 지난 주\n• 예정건: 진행상태=진행, 진행일이 이번 주\n• 필요: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nExcel에서 "다른 이름으로 저장" → CSV UTF-8(쉼표로 분리)로 저장해 보세요.');
                 return;
             }
 
