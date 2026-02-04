@@ -769,6 +769,14 @@ td {
 
 .col-num { text-align: right; font-variant-numeric: tabular-nums; }
 .col-center { text-align: center; }
+
+.unpaid-summary {
+    margin-top: 16px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-align: right;
+}
+
 .text-profit { color: var(--success); font-weight: 700; }
 .text-loss { color: var(--danger); font-weight: 700; }
 

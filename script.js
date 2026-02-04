@@ -792,9 +792,9 @@ function renderUnpaid() {
         totalSupply += supply;
         html += `<tr>
             <td class="col-center">${idx + 1}</td>
-            <td>${escapeAttr(r.buildingName) || '-'}</td>
-            <td>${escapeAttr(r.projectName) || '-'}</td>
-            <td>${escapeAttr(r.invoiceDate) || '-'}</td>
+            <td class="col-center">${escapeAttr(r.buildingName) || '-'}</td>
+            <td class="col-center">${escapeAttr(r.projectName) || '-'}</td>
+            <td class="col-center">${escapeAttr(r.invoiceDate) || '-'}</td>
             <td class="col-num">${supply.toLocaleString()}</td>
         </tr>`;
     });
