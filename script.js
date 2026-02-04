@@ -315,9 +315,9 @@ function buildWeeklyHeaderMap(fields) {
         const f = String(field || '').trim();
         if (['건물명','buildingname','building_name'].includes(key)) map[field] = 'building_name';
         if (['공사명','프로젝트명','projectname','project_name'].includes(key)) map[field] = 'project_name';
-        if (['진행일','progressdate','progress_date','예정일'].includes(key)) map[field] = 'progress_date';
-        if (f.includes('진행') && f.includes('일') && !f.includes('상태')) map[field] = 'progress_date';
-        if (['완료일','completiondate','completion_date'].includes(key)) map[field] = 'completion_date';
+        if (['진행일','progressdate','progress_date','예정일','매출예정일','착수예정일'].includes(key)) map[field] = 'progress_date';
+        if ((f.includes('진행') || f.includes('예정')) && f.includes('일') && !f.includes('상태')) map[field] = 'progress_date';
+        if (['완료일','completiondate','completion_date','매출완료일','실제완료일'].includes(key)) map[field] = 'completion_date';
         if (f.includes('완료') && f.includes('일')) map[field] = 'completion_date';
         if (['진행상태','progressstatus','progress_status'].includes(key)) map[field] = 'progress_status';
     });
@@ -332,17 +332,34 @@ function handleWeeklyCsvFileChange(event) {
         event.target.value = '';
         return;
     }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target?.result;
-        if (typeof text !== 'string') return;
-        parseWeeklyCsvText(text, file.name);
-    };
-    reader.readAsText(file, 'EUC-KR');
+    const emptyEl = document.getElementById('weeklyReportEmpty');
+    if (emptyEl) emptyEl.textContent = 'CSV 분석 중...';
+    function doRead(encoding) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target?.result;
+            if (typeof text !== 'string') {
+                const el = document.getElementById('weeklyReportEmpty');
+                if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
+                alert('파일을 읽을 수 없습니다.');
+                return;
+            }
+            const retryFn = (encoding === 'EUC-KR') ? function() { doRead('UTF-8'); } : null;
+            parseWeeklyCsvText(text, file.name, retryFn, file);
+        };
+        reader.onerror = function() {
+            const el = document.getElementById('weeklyReportEmpty');
+            if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
+            if (encoding === 'EUC-KR') doRead('UTF-8');
+            else alert('파일을 읽는 중 오류가 발생했습니다.');
+        };
+        reader.readAsText(file, encoding);
+    }
+    doRead('EUC-KR');
     event.target.value = '';
 }
 
-function parseWeeklyCsvText(csvText, fileName) {
+function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
     if (typeof Papa === 'undefined') {
         alert('CSV 파서가 로드되지 않았습니다.');
         return;
@@ -379,38 +396,59 @@ function parseWeeklyCsvText(csvText, fileName) {
             });
             weeklyReportData = { complete, scheduled, weekLabel: week.weekLabel };
 
+            const emptyEl2 = document.getElementById('weeklyReportEmpty');
+            if (emptyEl2) emptyEl2.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
+            if (complete.length === 0 && scheduled.length === 0) {
+                if (typeof retryWithUtf8 === 'function' && file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const text = e.target?.result;
+                        if (typeof text === 'string') parseWeeklyCsvText(text, fileName, null, null);
+                        else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                    return;
+                }
+                alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nCSV 인코딩이 깨지면 Excel에서 "다른 이름으로 저장" → CSV UTF-8로 저장해 보세요.');
+                return;
+            }
+
+            let saveMsg = '';
             if (isSupabaseConfigured()) {
                 const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
                 if (!unlocked || !editorPinValue) {
-                    alert('주간보고 저장은 PIN 잠금 해제 후 가능합니다. 설정에서 잠금을 해제해 주세요.');
-                    return;
-                }
-            }
-
-            if (isSupabaseConfigured()) {
-                const apiBase = window.API_BASE_URL || '';
-                try {
-                    const res = await fetch(apiBase + '/api/sync-weekly', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData })
-                    });
-                    const json = await res.json().catch(() => ({}));
-                    if (!res.ok) {
-                        if (res.status === 401) alert('PIN이 올바르지 않습니다. 다시 잠금 해제해 주세요.');
-                        else alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
-                        return;
+                    saveMsg = '다른 기기 동기화를 위해 설정에서 PIN을 입력해 주세요.';
+                } else {
+                    const apiBase = window.API_BASE_URL || '';
+                    try {
+                        const res = await fetch(apiBase + '/api/sync-weekly', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData })
+                        });
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            saveOk = false;
+                            saveMsg = res.status === 401 ? 'PIN이 올바르지 않습니다.' : ('저장 실패: ' + (json.detail || json.error || ''));
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        saveOk = false;
+                        saveMsg = '저장 중 오류가 발생했습니다. (화면에는 표시됩니다)';
                     }
-                } catch (e) {
-                    console.error(e);
-                    alert('저장 중 오류가 발생했습니다.');
-                    return;
                 }
             }
 
             renderWeekly();
+            if (saveMsg) {
+                alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n' + saveMsg);
+            } else {
+                alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
+            }
         },
         error: function() {
+            const el = document.getElementById('weeklyReportEmpty');
+            if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
         }
     });
