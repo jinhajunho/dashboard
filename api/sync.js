@@ -4,7 +4,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const TABLE_DASHBOARD = 'dashboard_rows';
-const TABLE_UNPAID = 'unpaid_items';
+// unpaid_items는 /api/sync-unpaid (미수금 CSV 업로드)에서만 갱신
 
 function rowToDashboard(row) {
   return {
@@ -18,24 +18,6 @@ function rowToDashboard(row) {
     labor: Number(row.labor) || 0,
     sga: Number(row.sga) || 0,
   };
-}
-
-function rowToUnpaid(row) {
-  return {
-    month: String(row.month ?? ''),
-    building_name: String(row.buildingName ?? row.building_name ?? '').trim(),
-    invoice_date: String(row.invoiceDate ?? row.invoice_date ?? '').trim(),
-    supply_amount: Number(row.supplyAmount ?? row.supply_amount) || 0,
-  };
-}
-
-function isUnpaidEligible(row) {
-  if (String(row.cat2 ?? '').trim() !== '관리건물') return false;
-  const building = String(row.buildingName ?? row.building_name ?? '').trim();
-  const invDate = String(row.invoiceDate ?? row.invoice_date ?? '').trim();
-  const supplyAmt = Number(row.supplyAmount ?? row.supply_amount) || 0;
-  if (!building && !invDate && supplyAmt === 0) return false;
-  return true;
 }
 
 module.exports = async (req, res) => {
@@ -73,7 +55,6 @@ module.exports = async (req, res) => {
 
   const rows = Array.isArray(data) ? data : [];
   const toDashboard = rows.map(rowToDashboard);
-  const toUnpaid = rows.filter(isUnpaidEligible).map(rowToUnpaid);
 
   const supabase = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -90,19 +71,6 @@ module.exports = async (req, res) => {
       if (insertErr) {
         console.error(insertErr);
         return res.status(500).json({ error: 'Insert failed', detail: insertErr.message });
-      }
-    }
-
-    const { error: delUnpaidErr } = await supabase.from(TABLE_UNPAID).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    if (delUnpaidErr) {
-      console.error(delUnpaidErr);
-      return res.status(500).json({ error: 'Unpaid delete failed', detail: delUnpaidErr.message });
-    }
-    if (toUnpaid.length > 0) {
-      const { error: insertUnpaidErr } = await supabase.from(TABLE_UNPAID).insert(toUnpaid);
-      if (insertUnpaidErr) {
-        console.error(insertUnpaidErr);
-        return res.status(500).json({ error: 'Unpaid insert failed', detail: insertUnpaidErr.message });
       }
     }
 
