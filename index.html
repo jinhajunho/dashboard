@@ -157,20 +157,20 @@
                 <div class="section-title">
                     <span>관리건물 · 완료된 미수 건</span>
                 </div>
-                <div style="overflow-x: auto;">
-                    <table id="unpaidTable" class="editor-table">
+                <div class="unpaid-table-wrap">
+                    <table id="unpaidTable" class="unpaid-table">
                         <thead>
                             <tr>
-                                <th>순번</th>
-                                <th>건물명</th>
-                                <th>매출 발행일</th>
-                                <th class="col-num">공급가액 (VAT 별도)</th>
+                                <th class="col-no">순번</th>
+                                <th class="col-building">건물명</th>
+                                <th class="col-date">매출 발행일</th>
+                                <th class="col-amount">공급가액 (VAT 별도)</th>
                             </tr>
                         </thead>
                         <tbody id="unpaidTableBody"></tbody>
                     </table>
                 </div>
-                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
+                <div id="unpaidSummary" class="unpaid-summary">
                     공급가액 합계: 0원 (VAT 별도)
                 </div>
             </div>

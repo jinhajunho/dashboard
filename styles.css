@@ -963,6 +963,68 @@ input:checked + .slider.green-toggle { background-color: var(--success); }
 
 .editor-table tr:hover { background: #fafafa; }
 
+/* 미수금 테이블 */
+.unpaid-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.unpaid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.unpaid-table th {
+    background: var(--bg);
+    border-bottom: 2px solid var(--border);
+    padding: 12px 16px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.unpaid-table th.col-no,
+.unpaid-table td.col-no { width: 60px; text-align: center; }
+.unpaid-table th.col-building,
+.unpaid-table td.col-building { min-width: 180px; padding-left: 16px; }
+.unpaid-table th.col-date,
+.unpaid-table td.col-date { width: 120px; text-align: center; }
+.unpaid-table th.col-amount,
+.unpaid-table td.col-amount { width: 140px; text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
+
+.unpaid-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.unpaid-table tbody tr:hover {
+    background: rgba(10, 132, 255, 0.04);
+}
+
+.unpaid-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.unpaid-table .empty-msg {
+    text-align: center;
+    padding: 40px 20px !important;
+    color: var(--muted);
+}
+
+.unpaid-summary {
+    margin-top: 16px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-align: right;
+    padding-right: 16px;
+}
+
+body.dark .unpaid-table tbody tr:hover {
+    background: rgba(96, 165, 250, 0.08);
+}
+
 .chart-glow {
     border-radius: 16px;
     padding: 8px;
