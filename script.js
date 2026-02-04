@@ -90,11 +90,29 @@ async function loadData() {
     globalData = globalData.map(ensureUnpaidFields);
 }
 
+async function loadWeeklyReport() {
+    if (!isSupabaseConfigured() || !window.supabaseClient) return;
+    try {
+        const { data } = await window.supabaseClient.from('weekly_report').select('week_label, complete_data, scheduled_data').order('created_at', { ascending: false }).limit(1);
+        const row = data && data[0];
+        if (row) {
+            weeklyReportData = {
+                complete: Array.isArray(row.complete_data) ? row.complete_data : [],
+                scheduled: Array.isArray(row.scheduled_data) ? row.scheduled_data : [],
+                weekLabel: String(row.week_label ?? '')
+            };
+        }
+    } catch (e) {
+        console.warn('Weekly report load failed', e);
+    }
+}
+
 window.onload = async function() {
     if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && typeof window.supabase !== 'undefined') {
         window.supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
     }
     await loadData();
+    await loadWeeklyReport();
 
     renderEditor();
     updateFilterOptions();
@@ -107,6 +125,10 @@ window.onload = async function() {
     const unpaidCsvInput = document.getElementById('unpaidCsvInput');
     if (unpaidCsvInput) {
         unpaidCsvInput.addEventListener('change', handleUnpaidCsvFileChange);
+    }
+    const weeklyCsvInput = document.getElementById('weeklyCsvInput');
+    if (weeklyCsvInput) {
+        weeklyCsvInput.addEventListener('change', handleWeeklyCsvFileChange);
     }
 
     setupTheme();
@@ -153,6 +175,8 @@ function switchTab(tabName) {
         renderAll();
     } else if (tabName === 'unpaid') {
         renderUnpaid();
+    } else if (tabName === 'weekly') {
+        renderWeekly();
     } else {
         renderEditor();
     }
@@ -235,6 +259,210 @@ function triggerUnpaidCsvInput() {
     if (unpaidCsvInput) {
         unpaidCsvInput.click();
     }
+}
+
+function triggerWeeklyCsvInput() {
+    const weeklyCsvInput = document.getElementById('weeklyCsvInput');
+    if (weeklyCsvInput) {
+        weeklyCsvInput.click();
+    }
+}
+
+let weeklyReportData = { complete: [], scheduled: [], weekLabel: '' };
+
+function getKoreaWeekRange() {
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = formatter.formatToParts(new Date());
+    const y = parseInt(parts.find(p => p.type === 'year').value, 10);
+    const m = parseInt(parts.find(p => p.type === 'month').value, 10) - 1;
+    const d = parseInt(parts.find(p => p.type === 'day').value, 10);
+    const dayOfWeek = new Date(y, m, d).getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const thisMonday = new Date(y, m, d - daysFromMonday);
+    const thisSunday = new Date(thisMonday);
+    thisSunday.setDate(thisMonday.getDate() + 6);
+    const nextMonday = new Date(thisMonday);
+    nextMonday.setDate(thisMonday.getDate() + 7);
+    const nextSunday = new Date(nextMonday);
+    nextSunday.setDate(nextMonday.getDate() + 6);
+    const pad = n => String(n).padStart(2, '0');
+    return {
+        thisWeekStart: `${thisMonday.getFullYear()}-${pad(thisMonday.getMonth() + 1)}-${pad(thisMonday.getDate())}`,
+        thisWeekEnd: `${thisSunday.getFullYear()}-${pad(thisSunday.getMonth() + 1)}-${pad(thisSunday.getDate())}`,
+        nextWeekStart: `${nextMonday.getFullYear()}-${pad(nextMonday.getMonth() + 1)}-${pad(nextMonday.getDate())}`,
+        nextWeekEnd: `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}`,
+        weekLabel: `${thisWeekStart} ~ ${thisWeekEnd}`
+    };
+}
+
+function parseDateToYmd(val) {
+    const s = String(val || '').trim();
+    if (!s) return '';
+    const m = s.match(/(\d{4})[-\/]?(\d{1,2})[-\/]?(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    return s;
+}
+
+function isDateInWeek(dateYmd, weekStart, weekEnd) {
+    if (!dateYmd || !weekStart || !weekEnd) return false;
+    return dateYmd >= weekStart && dateYmd <= weekEnd;
+}
+
+function buildWeeklyHeaderMap(fields) {
+    const map = {};
+    (fields || []).forEach(field => {
+        const key = normalizeHeader(field);
+        const f = String(field || '').trim();
+        if (['건물명','buildingname','building_name'].includes(key)) map[field] = 'building_name';
+        if (['공사명','프로젝트명','projectname','project_name'].includes(key)) map[field] = 'project_name';
+        if (['진행일','progressdate','progress_date','예정일'].includes(key)) map[field] = 'progress_date';
+        if (f.includes('진행') && f.includes('일') && !f.includes('상태')) map[field] = 'progress_date';
+        if (['완료일','completiondate','completion_date'].includes(key)) map[field] = 'completion_date';
+        if (f.includes('완료') && f.includes('일')) map[field] = 'completion_date';
+        if (['진행상태','progressstatus','progress_status'].includes(key)) map[field] = 'progress_status';
+    });
+    return map;
+}
+
+function handleWeeklyCsvFileChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('CSV 파일만 업로드할 수 있습니다.');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target?.result;
+        if (typeof text !== 'string') return;
+        parseWeeklyCsvText(text, file.name);
+    };
+    reader.readAsText(file, 'EUC-KR');
+    event.target.value = '';
+}
+
+function parseWeeklyCsvText(csvText, fileName) {
+    if (typeof Papa === 'undefined') {
+        alert('CSV 파서가 로드되지 않았습니다.');
+        return;
+    }
+    const week = getKoreaWeekRange();
+    Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const headerMap = buildWeeklyHeaderMap(results.meta && results.meta.fields);
+            const complete = [];
+            const scheduled = [];
+            (results.data || []).forEach(raw => {
+                const row = { building_name: '', project_name: '', progress_date: '', completion_date: '', progress_status: '' };
+                Object.keys(raw || {}).forEach(field => {
+                    const key = headerMap[field];
+                    if (key === 'building_name') row.building_name = String(raw[field] ?? '').trim();
+                    if (key === 'project_name') row.project_name = String(raw[field] ?? '').trim();
+                    if (key === 'progress_date') row.progress_date = parseDateToYmd(raw[field]);
+                    if (key === 'completion_date') row.completion_date = parseDateToYmd(raw[field]);
+                    if (key === 'progress_status') row.progress_status = String(raw[field] ?? '').trim();
+                });
+                const status = row.progress_status;
+                const building = row.building_name || row.project_name;
+                const project = row.project_name || row.building_name;
+                if (!building && !project) return;
+                const label = (building && project) ? `${building} - ${project}` : (building || project || '-');
+                const item = { building: building || '-', project: project || '-', label };
+                if (status === '완료' && isDateInWeek(row.completion_date, week.thisWeekStart, week.thisWeekEnd)) {
+                    complete.push(item);
+                } else if (status === '진행' && isDateInWeek(row.progress_date, week.nextWeekStart, week.nextWeekEnd)) {
+                    scheduled.push(item);
+                }
+            });
+            weeklyReportData = { complete, scheduled, weekLabel: week.weekLabel };
+
+            if (isSupabaseConfigured()) {
+                const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
+                if (!unlocked || !editorPinValue) {
+                    alert('주간보고 저장은 PIN 잠금 해제 후 가능합니다. 설정에서 잠금을 해제해 주세요.');
+                    return;
+                }
+            }
+
+            if (isSupabaseConfigured()) {
+                const apiBase = window.API_BASE_URL || '';
+                try {
+                    const res = await fetch(apiBase + '/api/sync-weekly', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData })
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        if (res.status === 401) alert('PIN이 올바르지 않습니다. 다시 잠금 해제해 주세요.');
+                        else alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
+                        return;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('저장 중 오류가 발생했습니다.');
+                    return;
+                }
+            }
+
+            renderWeekly();
+        },
+        error: function() {
+            alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+function renderWeekly() {
+    const contentEl = document.getElementById('weeklyReportContent');
+    const emptyEl = document.getElementById('weeklyReportEmpty');
+    const weekLabelEl = document.getElementById('weeklyReportWeek');
+    const completeHeader = document.getElementById('weeklyCompleteHeader');
+    const completeList = document.getElementById('weeklyCompleteList');
+    const scheduledHeader = document.getElementById('weeklyScheduledHeader');
+    const scheduledList = document.getElementById('weeklyScheduledList');
+    if (!contentEl || !emptyEl) return;
+
+    const { complete, scheduled, weekLabel } = weeklyReportData;
+    const hasData = complete.length > 0 || scheduled.length > 0;
+
+    contentEl.style.display = hasData ? 'block' : 'none';
+    emptyEl.style.display = hasData ? 'none' : 'block';
+
+    if (hasData) {
+        if (weekLabelEl) weekLabelEl.textContent = `기준 주: ${weekLabel || getKoreaWeekRange().weekLabel}`;
+        completeHeader.textContent = `1. 공사 완료건(${complete.length}건)`;
+        scheduledHeader.textContent = `2. 공사 예정(${scheduled.length}건)`;
+        completeList.innerHTML = complete.map(i => `<li>${escapeAttr(i.label)}</li>`).join('');
+        scheduledList.innerHTML = scheduled.map(i => `<li>${escapeAttr(i.label)}</li>`).join('');
+    }
+}
+
+function downloadWeeklyReport() {
+    const { complete, scheduled, weekLabel } = weeklyReportData;
+    if (complete.length === 0 && scheduled.length === 0) {
+        alert('다운로드할 데이터가 없습니다.');
+        return;
+    }
+    const rows = [];
+    rows.push(['구분', '건물명', '공사명']);
+    complete.forEach(i => {
+        rows.push(['완료', i.building, i.project]);
+    });
+    scheduled.forEach(i => {
+        rows.push(['예정', i.building, i.project]);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `주간보고_${weekLabel.replace(/\s/g, '')}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 function buildUnpaidHeaderMap(fields) {
