@@ -15,11 +15,12 @@ create table if not exists public.dashboard_rows (
   created_at timestamptz default now()
 );
 
--- 미수금 전용 테이블 (건물명, 매출발행일, 공급가액만)
+-- 미수금 전용 테이블 (건물명, 프로젝트명, 매출발행일, 공급가액)
 create table if not exists public.unpaid_items (
   id uuid primary key default gen_random_uuid(),
   month text default '',
   building_name text default '',
+  project_name text default '',
   invoice_date text default '',
   supply_amount bigint default 0,
   created_at timestamptz default now()

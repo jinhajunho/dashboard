@@ -146,7 +146,7 @@
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">미수금 CSV 업로드</div>
-                    <div class="upload-desc">건물명, 매출 발행일, 공급가액 컬럼이 포함된 CSV를 업로드하세요. 업로드 시 기존 미수금 데이터가 교체됩니다.</div>
+                    <div class="upload-desc">건물명, 프로젝트명, 매출 발행일, 공급가액 컬럼이 포함된 CSV를 업로드하세요. 업로드 시 기존 미수금 데이터가 교체됩니다.</div>
                 </div>
                 <div class="upload-actions">
                     <input type="file" id="unpaidCsvInput" class="file-input" accept=".csv">
@@ -157,20 +157,21 @@
                 <div class="section-title">
                     <span>관리건물 · 완료된 미수 건</span>
                 </div>
-                <div class="unpaid-table-wrap">
-                    <table id="unpaidTable" class="unpaid-table">
+                <div style="overflow-x: auto;">
+                    <table id="unpaidTable" class="editor-table">
                         <thead>
                             <tr>
-                                <th class="col-no">순번</th>
-                                <th class="col-building">건물명</th>
-                                <th class="col-date">매출 발행일</th>
-                                <th class="col-amount">공급가액 (VAT 별도)</th>
+                                <th>순번</th>
+                                <th>건물명</th>
+                                <th>프로젝트명</th>
+                                <th>매출 발행일</th>
+                                <th class="col-num">공급가액 (VAT 별도)</th>
                             </tr>
                         </thead>
                         <tbody id="unpaidTableBody"></tbody>
                     </table>
                 </div>
-                <div id="unpaidSummary" class="unpaid-summary">
+                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
                     공급가액 합계: 0원 (VAT 별도)
                 </div>
             </div>

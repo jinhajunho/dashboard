@@ -9,6 +9,7 @@ function rowToUnpaid(row) {
   return {
     month: String(row.month ?? '').trim(),
     building_name: String(row.building_name ?? row.buildingName ?? '').trim(),
+    project_name: String(row.project_name ?? row.projectName ?? '').trim(),
     invoice_date: String(row.invoice_date ?? row.invoiceDate ?? '').trim(),
     supply_amount: Number(row.supply_amount ?? row.supplyAmount) || 0,
   };
