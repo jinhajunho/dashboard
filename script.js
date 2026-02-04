@@ -286,11 +286,15 @@ function getKoreaWeekRange() {
     const nextSunday = new Date(nextMonday);
     nextSunday.setDate(nextMonday.getDate() + 6);
     const pad = n => String(n).padStart(2, '0');
+    const thisWeekStart = `${thisMonday.getFullYear()}-${pad(thisMonday.getMonth() + 1)}-${pad(thisMonday.getDate())}`;
+    const thisWeekEnd = `${thisSunday.getFullYear()}-${pad(thisSunday.getMonth() + 1)}-${pad(thisSunday.getDate())}`;
+    const nextWeekStart = `${nextMonday.getFullYear()}-${pad(nextMonday.getMonth() + 1)}-${pad(nextMonday.getDate())}`;
+    const nextWeekEnd = `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}`;
     return {
-        thisWeekStart: `${thisMonday.getFullYear()}-${pad(thisMonday.getMonth() + 1)}-${pad(thisMonday.getDate())}`,
-        thisWeekEnd: `${thisSunday.getFullYear()}-${pad(thisSunday.getMonth() + 1)}-${pad(thisSunday.getDate())}`,
-        nextWeekStart: `${nextMonday.getFullYear()}-${pad(nextMonday.getMonth() + 1)}-${pad(nextMonday.getDate())}`,
-        nextWeekEnd: `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}`,
+        thisWeekStart,
+        thisWeekEnd,
+        nextWeekStart,
+        nextWeekEnd,
         weekLabel: `${thisWeekStart} ~ ${thisWeekEnd}`
     };
 }
