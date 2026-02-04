@@ -344,18 +344,18 @@ function handleWeeklyCsvFileChange(event) {
                 alert('파일을 읽을 수 없습니다.');
                 return;
             }
-            const retryFn = (encoding === 'EUC-KR') ? function() { doRead('UTF-8'); } : null;
+            const retryFn = (encoding === 'UTF-8') ? function() { doRead('EUC-KR'); } : null;
             parseWeeklyCsvText(text, file.name, retryFn, file);
         };
         reader.onerror = function() {
             const el = document.getElementById('weeklyReportEmpty');
             if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
-            if (encoding === 'EUC-KR') doRead('UTF-8');
+            if (encoding === 'UTF-8') doRead('EUC-KR');
             else alert('파일을 읽는 중 오류가 발생했습니다.');
         };
         reader.readAsText(file, encoding);
     }
-    doRead('EUC-KR');
+    doRead('UTF-8');
     event.target.value = '';
 }
 
@@ -368,11 +368,14 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
     Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
+        worker: false,
         complete: async function(results) {
+            try {
+            const rawRows = results.data || [];
             const headerMap = buildWeeklyHeaderMap(results.meta && results.meta.fields);
             const complete = [];
             const scheduled = [];
-            (results.data || []).forEach(raw => {
+            rawRows.forEach(raw => {
                 const row = { building_name: '', project_name: '', progress_date: '', completion_date: '', progress_status: '' };
                 Object.keys(raw || {}).forEach(field => {
                     const key = headerMap[field];
@@ -406,10 +409,11 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                         if (typeof text === 'string') parseWeeklyCsvText(text, fileName, null, null);
                         else alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명');
                     };
-                    reader.readAsText(file, 'UTF-8');
+                    reader.readAsText(file, 'EUC-KR');
                     return;
                 }
-                alert('조건에 맞는 데이터가 없습니다.\n\n• 완료건: 진행상태=완료, 완료일이 이번 주(월~일)\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요한 컬럼: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nCSV 인코딩이 깨지면 Excel에서 "다른 이름으로 저장" → CSV UTF-8로 저장해 보세요.');
+                const headers = (results.meta && results.meta.fields) ? results.meta.fields.slice(0, 8).join(', ') : '(없음)';
+                alert('조건에 맞는 데이터가 없습니다.\n\nCSV ' + rawRows.length + '행 읽음. 컬럼: ' + headers + '\n\n• 완료건: 진행상태=완료, 완료일이 이번 주\n• 예정건: 진행상태=진행, 진행일이 다음 주\n• 필요: 진행일, 완료일, 진행상태, 건물명, 공사명\n\nExcel에서 "다른 이름으로 저장" → CSV UTF-8(쉼표로 분리)로 저장해 보세요.');
                 return;
             }
 
@@ -434,9 +438,14 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                     clearTimeout(timeout);
                     console.warn('주간보고 Supabase 저장 오류:', e);
                 });
+            } catch (err) {
+                console.error('주간보고 파싱 오류:', err);
+                const el = document.getElementById('weeklyReportEmpty');
+                if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
+                alert('처리 중 오류가 발생했습니다. 개발자 도구(F12) 콘솔을 확인해 주세요.');
             }
         },
-        error: function() {
+        error: function(err) {
             const el = document.getElementById('weeklyReportEmpty');
             if (el) el.textContent = 'CSV를 업로드하면 주간보고가 표시됩니다.';
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
