@@ -413,37 +413,27 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
                 return;
             }
 
-            let saveMsg = '';
+            renderWeekly();
+            alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
+
             if (isSupabaseConfigured()) {
                 const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
-                if (!unlocked || !editorPinValue) {
-                    saveMsg = '다른 기기 동기화를 위해 설정에서 PIN을 입력해 주세요.';
-                } else {
-                    const apiBase = window.API_BASE_URL || '';
-                    try {
-                        const res = await fetch(apiBase + '/api/sync-weekly', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData })
-                        });
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                            saveOk = false;
-                            saveMsg = res.status === 401 ? 'PIN이 올바르지 않습니다.' : ('저장 실패: ' + (json.detail || json.error || ''));
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        saveOk = false;
-                        saveMsg = '저장 중 오류가 발생했습니다. (화면에는 표시됩니다)';
-                    }
-                }
-            }
-
-            renderWeekly();
-            if (saveMsg) {
-                alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n' + saveMsg);
-            } else {
-                alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
+                if (!unlocked || !editorPinValue) return;
+                const apiBase = window.API_BASE_URL || '';
+                const ctrl = new AbortController();
+                const timeout = setTimeout(() => ctrl.abort(), 15000);
+                fetch(apiBase + '/api/sync-weekly', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: editorPinValue, data: weeklyReportData }),
+                    signal: ctrl.signal
+                }).then(res => {
+                    clearTimeout(timeout);
+                    if (!res.ok) console.warn('주간보고 저장 실패:', res.status);
+                }).catch(e => {
+                    clearTimeout(timeout);
+                    console.warn('주간보고 Supabase 저장 오류:', e);
+                });
             }
         },
         error: function() {
