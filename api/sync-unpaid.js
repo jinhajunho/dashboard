@@ -1,5 +1,5 @@
-// Vercel Serverless: PIN 검증 후 unpaid_items만 저장
-// 환경 변수: EDITOR_PIN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Vercel Serverless: unpaid_items 저장 (미수금은 PIN 없이 저장 가능)
+// 환경 변수: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -28,7 +28,6 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const pin = process.env.EDITOR_PIN;
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -43,11 +42,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Invalid JSON' });
   }
 
-  const { pin: sentPin, data } = body;
-  if (!pin || sentPin !== pin) {
-    return res.status(401).json({ error: 'Invalid PIN' });
-  }
-
+  const data = body.data;
   const rows = Array.isArray(data) ? data : [];
   const toInsert = rows.map(rowToUnpaid);
 

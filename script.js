@@ -598,25 +598,20 @@ function parseUnpaidCsvText(csvText, fileName) {
                 alert('유효한 미수금 데이터가 없습니다. 중분류 "관리건물", 진행상태 "완료", 수금미완료(미수/수금액0/비어있음)인 행이 있는지 확인해 주세요.');
                 return;
             }
-            const unlocked = sessionStorage.getItem('sga_unlocked') === '1';
-            if (!unlocked || !editorPinValue) {
-                alert('미수금 업로드는 PIN 잠금 해제 후 가능합니다. 설정에서 잠금을 해제해 주세요.');
+            const apiBase = window.API_BASE_URL || '';
+            if (!isSupabaseConfigured()) {
+                alert('Supabase가 설정되지 않았습니다.');
                 return;
             }
-            const apiBase = window.API_BASE_URL || '';
             try {
                 const res = await fetch(apiBase + '/api/sync-unpaid', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: editorPinValue, data: rows })
+                    body: JSON.stringify({ data: rows })
                 });
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                    if (res.status === 401) {
-                        alert('PIN이 올바르지 않습니다. 다시 잠금 해제해 주세요.');
-                    } else {
-                        alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
-                    }
+                    alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
                     return;
                 }
                 await loadData();
