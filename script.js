@@ -7,6 +7,7 @@ let chartObserver = null;
 let chartAnimated = false;
 let editorPinValue = ''; // PIN 잠금 해제 시에만 저장, Supabase 쓰기용
 let syncDebounceTimer = null;
+let editorActiveTab = 'real'; // 'real' | 'sga' - 데이터 관리 내 실적/판관비 탭
 const STORAGE_KEY = 'v31_dashboard_data'; // bumped for unpaid fields
 
 const defaultData = [];
@@ -114,7 +115,7 @@ window.onload = async function() {
     await loadData();
     await loadWeeklyReport();
 
-    renderEditor();
+    renderEditorTab();
     updateFilterOptions();
     renderAll();
 
@@ -130,14 +131,25 @@ window.onload = async function() {
     if (weeklyCsvInput) {
         weeklyCsvInput.addEventListener('change', handleWeeklyCsvFileChange);
     }
+    const sgaCsvInput = document.getElementById('sgaCsvInput');
+    if (sgaCsvInput) {
+        sgaCsvInput.addEventListener('change', handleSgaCsvFileChange);
+    }
 
     setupTheme();
     setupMonthSelect();
     setupTableTabs();
+    setupEditorTabs();
+    setupEditorDropdowns();
     setupSettingsMenu();
     setupSgaPin();
     setupRevealAnimations();
 };
+
+function isSgaRow(row) {
+    const r = ensureUnpaidFields(row || {});
+    return String(r.cat2 || '').trim() === '판관비' || String(r.cat1 || '').trim() === '본사' || (Number(r.sga) || 0) > 0;
+}
 
 // 탭 전환 기능 (에디터는 PIN 입력한 사람만 접근 가능, 별도 로그인 없음)
 function switchTab(tabName) {
@@ -177,16 +189,101 @@ function switchTab(tabName) {
         renderUnpaid();
     } else if (tabName === 'weekly') {
         renderWeekly();
+    } else if (tabName === 'editor') {
+        renderEditorTab();
+    }
+}
+
+// --- Editor Functions ---
+function renderEditorTab() {
+    if (editorActiveTab === 'sga') {
+        renderSgaEditor();
     } else {
         renderEditor();
     }
 }
 
-// --- Editor Functions ---
+function resetEditorMonthFilterToAll() {
+    ['editorMonthFilter', 'editorSgaMonthFilter'].forEach(id => {
+        const input = document.getElementById(id);
+        const btn = document.getElementById(id === 'editorMonthFilter' ? 'editorMonthFilterBtn' : 'editorSgaMonthFilterBtn');
+        if (input && btn) {
+            input.value = 'ALL';
+            btn.textContent = '전체';
+        }
+    });
+}
+
+function updateEditorMonthFilterOptions() {
+    const input = document.getElementById('editorMonthFilter');
+    const list = document.getElementById('editorMonthFilterList');
+    const btn = document.getElementById('editorMonthFilterBtn');
+    if (!input || !list || !btn) return;
+    const currentVal = input.value;
+    const months = [...new Set(globalData.filter(r => !isSgaRow(r)).map(d => d.month).filter(Boolean))].sort();
+    list.innerHTML = '';
+    const addItem = (val, label) => {
+        const el = document.createElement('div');
+        el.className = 'editor-dropdown-item' + (val === currentVal ? ' is-selected' : '');
+        el.textContent = label;
+        el.dataset.value = val;
+        el.addEventListener('click', () => {
+            input.value = val;
+            btn.textContent = label;
+            list.querySelectorAll('.editor-dropdown-item').forEach(i => i.classList.remove('is-selected'));
+            el.classList.add('is-selected');
+            document.getElementById('editorMonthFilterShell')?.classList.remove('is-open');
+            renderEditorTab();
+        });
+        list.appendChild(el);
+    };
+    addItem('ALL', '전체');
+    months.forEach(m => addItem(m, m));
+    const validVal = (currentVal === 'ALL' || months.includes(currentVal)) ? currentVal : 'ALL';
+    input.value = validVal;
+    btn.textContent = validVal === 'ALL' ? '전체' : validVal;
+}
+
+function updateEditorSgaMonthFilterOptions() {
+    const input = document.getElementById('editorSgaMonthFilter');
+    const list = document.getElementById('editorSgaMonthFilterList');
+    const btn = document.getElementById('editorSgaMonthFilterBtn');
+    if (!input || !list || !btn) return;
+    const currentVal = input.value;
+    const months = [...new Set(globalData.filter(r => isSgaRow(r)).map(d => d.month).filter(Boolean))].sort();
+    list.innerHTML = '';
+    const addItem = (val, label) => {
+        const el = document.createElement('div');
+        el.className = 'editor-dropdown-item' + (val === currentVal ? ' is-selected' : '');
+        el.textContent = label;
+        el.dataset.value = val;
+        el.addEventListener('click', () => {
+            input.value = val;
+            btn.textContent = label;
+            list.querySelectorAll('.editor-dropdown-item').forEach(i => i.classList.remove('is-selected'));
+            el.classList.add('is-selected');
+            document.getElementById('editorSgaMonthFilterShell')?.classList.remove('is-open');
+            renderEditorTab();
+        });
+        list.appendChild(el);
+    };
+    addItem('ALL', '전체');
+    months.forEach(m => addItem(m, m));
+    const validVal = (currentVal === 'ALL' || months.includes(currentVal)) ? currentVal : 'ALL';
+    input.value = validVal;
+    btn.textContent = validVal === 'ALL' ? '전체' : validVal;
+}
+
 function renderEditor() {
     const tbody = document.getElementById('editorBody');
+    const filterInput = document.getElementById('editorMonthFilter');
+    if (!tbody) return;
+    updateEditorMonthFilterOptions();
+    const filterVal = filterInput ? filterInput.value : 'ALL';
     tbody.innerHTML = '';
     globalData.forEach((row, idx) => {
+        if (isSgaRow(row)) return;
+        if (filterVal !== 'ALL' && row.month !== filterVal) return;
         const r = ensureUnpaidFields(row);
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -203,6 +300,143 @@ function renderEditor() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function renderSgaEditor() {
+    const tbody = document.getElementById('sgaEditorBody');
+    const filterInput = document.getElementById('editorSgaMonthFilter');
+    if (!tbody) return;
+    updateEditorSgaMonthFilterOptions();
+    const filterVal = filterInput ? filterInput.value : 'ALL';
+    tbody.innerHTML = '';
+    const sgaRows = [];
+    globalData.forEach((row, idx) => {
+        if (!isSgaRow(row)) return;
+        if (filterVal !== 'ALL' && row.month !== filterVal) return;
+        sgaRows.push({ row: ensureUnpaidFields(row), idx });
+    });
+    sgaRows.forEach(({ row: r, idx }) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align:center;"><button class="btn-del" onclick="deleteSgaRow(${idx})">✖</button></td>
+            <td><input type="text" value="${escapeAttr(r.month)}" onchange="editSgaData(${idx}, 'month', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat1)}" onchange="editSgaData(${idx}, 'cat1', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat2)}" onchange="editSgaData(${idx}, 'cat2', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.cat3)}" onchange="editSgaData(${idx}, 'cat3', this.value)"></td>
+            <td><input type="number" value="${r.count}" onchange="editSgaData(${idx}, 'count', this.value)"></td>
+            <td><input type="number" value="${r.rev}" onchange="editSgaData(${idx}, 'rev', this.value)"></td>
+            <td><input type="number" value="${r.purchase}" onchange="editSgaData(${idx}, 'purchase', this.value)"></td>
+            <td><input type="number" value="${r.labor}" onchange="editSgaData(${idx}, 'labor', this.value)"></td>
+            <td><input type="number" value="${r.sga}" onchange="editSgaData(${idx}, 'sga', this.value)"></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function editSgaData(idx, key, val) {
+    const numKeys = ['count','rev','purchase','labor','sga'];
+    if (numKeys.includes(key)) {
+        globalData[idx][key] = Number(val) || 0;
+    } else {
+        globalData[idx][key] = val;
+    }
+    saveToLocal();
+}
+
+function addRowForActiveTab() {
+    if (editorActiveTab === 'sga') addSgaRow();
+    else addRow();
+}
+
+function resetForActiveTab() {
+    if (editorActiveTab === 'sga') resetSgaData();
+    else resetData();
+}
+
+function addSgaRow() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    globalData.push({
+        month: `${yyyy}-${mm}`, cat1: '본사', cat2: '판관비', cat3: '', count: 0, rev: 0, purchase: 0, labor: 0, sga: 0,
+        buildingName: '', invoiceDate: '', progressStatus: '', paymentStatus: '', paymentAmount: 0, supplyAmount: 0
+    });
+    globalData.sort((a, b) => a.month.localeCompare(b.month));
+    renderEditorTab();
+    saveToLocal();
+}
+
+function deleteSgaRow(idx) {
+    if (confirm('이 데이터를 삭제하시겠습니까?')) {
+        globalData.splice(idx, 1);
+        renderEditorTab();
+        saveToLocal();
+    }
+}
+
+function resetSgaData() {
+    if (confirm('판관비 데이터를 모두 삭제하시겠습니까?')) {
+        globalData = globalData.filter(r => !isSgaRow(r));
+        renderEditorTab();
+        saveToLocal();
+        updateFilterOptions();
+        renderAll();
+        alert('판관비가 초기화되었습니다.');
+    }
+}
+
+function triggerSgaCsvInput() {
+    const input = document.getElementById('sgaCsvInput');
+    if (input) { input.value = ''; input.click(); }
+}
+
+function handleSgaCsvFileChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('CSV 파일만 업로드할 수 있습니다.');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target?.result;
+        if (typeof text !== 'string') return;
+        if (typeof Papa === 'undefined') {
+            alert('CSV 파서가 로드되지 않았습니다.');
+            return;
+        }
+        Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                const headerMap = buildHeaderMap(results.meta && results.meta.fields || []);
+                const newRows = [];
+                (results.data || []).forEach(raw => {
+                    const mapped = mapCsvRow(raw, headerMap);
+                    if (mapped && isSgaRow(mapped)) newRows.push(mapped);
+                });
+                if (newRows.length === 0) {
+                    alert('판관비 행이 없습니다. (중분류=판관비 또는 대분류=본사 또는 판관비>0인 행 필요)');
+                    return;
+                }
+                const uploadedMonths = [...new Set(newRows.map(r => r.month).filter(Boolean))];
+                const existingReal = globalData.filter(r => !isSgaRow(r));
+                const existingSga = globalData.filter(r => isSgaRow(r));
+                const sgaToKeep = existingSga.filter(r => !uploadedMonths.includes(r.month));
+                globalData = [...existingReal, ...sgaToKeep, ...newRows.map(r => ensureUnpaidFields(r))];
+                globalData.sort((a, b) => a.month.localeCompare(b.month));
+                resetEditorMonthFilterToAll();
+                renderEditorTab();
+                saveToLocal();
+                updateFilterOptions();
+                renderAll();
+                alert('판관비 CSV 업로드가 완료되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + newRows.length + '건)');
+            }
+        });
+    };
+    reader.readAsText(file, 'UTF-8');
+    event.target.value = '';
 }
 
 function editData(idx, key, val) {
@@ -223,14 +457,14 @@ function addRow() {
         month:`${yyyy}-${mm}`, cat1:"", cat2:"", cat3:"", count:0, rev:0, purchase:0, labor:0, sga:0,
         buildingName:"", invoiceDate:"", progressStatus:"", paymentStatus:"", paymentAmount:0, supplyAmount:0
     });
-    renderEditor();
+    renderEditorTab();
     saveToLocal();
 }
 
 function deleteRow(idx) {
     if(confirm("이 데이터를 삭제하시겠습니까?")) {
         globalData.splice(idx, 1);
-        renderEditor();
+        renderEditorTab();
         saveToLocal();
     }
 }
@@ -239,7 +473,7 @@ function resetData() {
     if(confirm("모든 데이터를 초기화하고 기본값으로 복구하시겠습니까?")) {
         localStorage.removeItem(STORAGE_KEY);
         globalData = JSON.parse(JSON.stringify(defaultData));
-        renderEditor();
+        renderEditorTab();
         saveToLocal();
         updateFilterOptions();
         renderAll();
@@ -489,6 +723,74 @@ function renderWeekly() {
     }
 }
 
+function toCsvRow(cells) {
+    return cells.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',');
+}
+
+function downloadCsvBlob(csv, filename) {
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function downloadRealCsv() {
+    const rows = globalData.filter(r => !isSgaRow(r));
+    if (rows.length === 0) {
+        alert('다운로드할 실적 데이터가 없습니다.');
+        return;
+    }
+    const header = ['월', '대분류', '중분류', '소분류', '건수', '매출', '매입', '사업소득', '판관비'];
+    const lines = [toCsvRow(header)];
+    rows.forEach(r => {
+        const x = ensureUnpaidFields(r);
+        lines.push(toCsvRow([x.month, x.cat1, x.cat2, x.cat3, x.count, x.rev, x.purchase, x.labor, x.sga]));
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCsvBlob(lines.join('\n'), `실적_${today}.csv`);
+}
+
+function downloadSgaCsv() {
+    const rows = globalData.filter(r => isSgaRow(r));
+    if (rows.length === 0) {
+        alert('다운로드할 판관비 데이터가 없습니다.');
+        return;
+    }
+    const header = ['월', '대분류', '중분류', '소분류', '건수', '매출', '매입', '사업소득', '판관비'];
+    const lines = [toCsvRow(header)];
+    rows.forEach(r => {
+        const x = ensureUnpaidFields(r);
+        lines.push(toCsvRow([x.month, x.cat1, x.cat2, x.cat3, x.count, x.rev, x.purchase, x.labor, x.sga]));
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCsvBlob(lines.join('\n'), `판관비_${today}.csv`);
+}
+
+function downloadUnpaidCsv() {
+    const filtered = globalData.filter(row => {
+        const r = ensureUnpaidFields(row);
+        if (String(r.cat2 || '').trim() !== '관리건물') return false;
+        const building = String(r.buildingName || '').trim();
+        const supply = Number(r.supplyAmount) || 0;
+        return !!(building || r.invoiceDate || supply > 0);
+    });
+    if (filtered.length === 0) {
+        alert('다운로드할 미수금 데이터가 없습니다.');
+        return;
+    }
+    const header = ['건물명', '프로젝트명', '매출 발행일', '공급가액'];
+    const lines = [toCsvRow(header)];
+    filtered.forEach(r => {
+        const x = ensureUnpaidFields(r);
+        lines.push(toCsvRow([x.buildingName, x.projectName, x.invoiceDate, x.supplyAmount]));
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCsvBlob(lines.join('\n'), `미수금_${today}.csv`);
+}
+
 function downloadWeeklyReport() {
     const { complete, scheduled, weekLabel } = weeklyReportData;
     if (complete.length === 0 && scheduled.length === 0) {
@@ -503,14 +805,8 @@ function downloadWeeklyReport() {
     scheduled.forEach(i => {
         rows.push(['예정', i.building, i.project]);
     });
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `주간보고_${weekLabel.replace(/\s/g, '')}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const csv = rows.map(r => toCsvRow(r)).join('\n');
+    downloadCsvBlob(csv, `주간보고_${weekLabel.replace(/\s/g, '')}.csv`);
 }
 
 function buildUnpaidHeaderMap(fields) {
@@ -650,14 +946,34 @@ function parseCsvFile(file) {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-            const rows = normalizeCsvRows(results.data, results.meta && results.meta.fields);
+            const rawData = results.data || [];
+            const fields = results.meta && results.meta.fields || [];
+            const aggregated = tryParseProjectCsvAndAggregate(rawData, fields);
+            if (aggregated) {
+                const uploadedMonths = [...new Set(aggregated.map(r => r.month).filter(Boolean))];
+                const existingSga = globalData.filter(r => isSgaRow(r));
+                const existingReal = globalData.filter(r => !isSgaRow(r));
+                const realToKeep = existingReal.filter(r => !uploadedMonths.includes(r.month));
+                globalData = [...existingSga, ...realToKeep, ...aggregated];
+                globalData.sort((a, b) => a.month.localeCompare(b.month));
+                resetEditorMonthFilterToAll();
+                updateDataFromEditor();
+                renderEditorTab();
+                saveToLocal();
+                renderAll();
+                renderUnpaid();
+                alert('프로젝트관리 원본이 집계되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + aggregated.length + '행)');
+                return;
+            }
+            const rows = normalizeCsvRows(rawData, fields);
             if (rows.length === 0) {
                 alert('유효한 데이터가 없습니다. 헤더와 내용을 확인해 주세요.');
                 return;
             }
             globalData = rows.map(ensureUnpaidFields);
+            resetEditorMonthFilterToAll();
             updateDataFromEditor();
-            renderEditor();
+            renderEditorTab();
             saveToLocal();
             renderAll();
             renderUnpaid();
@@ -667,6 +983,79 @@ function parseCsvFile(file) {
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
         }
     });
+}
+
+function buildProjectHeaderMap(fields) {
+    const map = {};
+    (fields || []).forEach(field => {
+        const key = normalizeHeader(field);
+        const f = String(field || '').trim();
+        if (['매출발행일','매출발행','invoicedate'].includes(key) || (f.includes('매출') && f.includes('발행'))) map[field] = 'invoiceDate';
+        if (['완료일','완료','completiondate'].includes(key) || f === '완료일') map[field] = 'completionDate';
+        if (['진행일','진행','progressdate'].includes(key) || f === '진행일') map[field] = 'progressDate';
+        if (['등록일','등록','regdate'].includes(key)) map[field] = 'regDate';
+        if (['대분류','cat1'].includes(key)) map[field] = 'cat1';
+        if (['중분류','cat2'].includes(key)) map[field] = 'cat2';
+        if (['소분류','cat3'].includes(key)) map[field] = 'cat3';
+        if (['진행상태','progressstatus'].includes(key)) map[field] = 'progressStatus';
+        if (['매출공급가액','매출공급가'].includes(key) || (f.includes('매출') && f.includes('공급'))) map[field] = 'rev';
+        if (['매입공급가액','매입공급가'].includes(key) || (f.includes('매입') && f.includes('공급'))) map[field] = 'purchase';
+        if (['사업소득금액','사업소득'].includes(key) || f.includes('사업소득')) map[field] = 'labor';
+    });
+    return map;
+}
+
+function parseDateToMonth(val) {
+    const s = String(val || '').trim();
+    if (!s) return '';
+    const m = s.match(/(\d{4})[-\/]?(\d{1,2})/);
+    return m ? `${m[1]}-${m[2].padStart(2, '0')}` : '';
+}
+
+function tryParseProjectCsvAndAggregate(rawData, fields) {
+    const headerMap = buildProjectHeaderMap(fields);
+    const hasInvoiceDate = Object.values(headerMap).includes('invoiceDate');
+    const hasCompletionDate = Object.values(headerMap).includes('completionDate');
+    const hasProgressDate = Object.values(headerMap).includes('progressDate');
+    const hasCat1 = Object.values(headerMap).includes('cat1');
+    const hasRev = Object.values(headerMap).includes('rev');
+    if (!(hasInvoiceDate || hasCompletionDate || hasProgressDate) || !hasCat1 || !hasRev || rawData.length === 0) return null;
+    const MIN_MONTH = '2025-12';
+    const rows = [];
+    rawData.forEach(raw => {
+        const getVal = (k) => {
+            const f = Object.keys(raw || {}).find(x => headerMap[x] === k);
+            return f != null ? raw[f] : null;
+        };
+        const dateVal = getVal('invoiceDate') || getVal('completionDate') || getVal('progressDate') || getVal('regDate');
+        const month = parseDateToMonth(dateVal);
+        if (!month || month < MIN_MONTH) return;
+        const cat1 = String(getVal('cat1') || '').trim();
+        let cat2 = String(getVal('cat2') || '').trim();
+        let cat3 = String(getVal('cat3') || '').trim();
+        if (cat2 === '관리건물' && (cat3 === '강남' || cat3 === '강서')) cat3 = '통합';
+        const progressStatus = String(getVal('progressStatus') || '').trim();
+        if (progressStatus !== '완료') return;
+        if (cat1 === '본사' || cat2 === '판관비') return;
+        const rev = toNumber(getVal('rev'));
+        const purchase = toNumber(getVal('purchase'));
+        const labor = toNumber(getVal('labor'));
+        rows.push({ month, cat1, cat2, cat3, rev, purchase, labor });
+    });
+    if (rows.length === 0) return null;
+    const group = new Map();
+    rows.forEach(r => {
+        const key = `${r.month}|${r.cat1}|${r.cat2}|${r.cat3}`;
+        if (!group.has(key)) {
+            group.set(key, { month: r.month, cat1: r.cat1, cat2: r.cat2, cat3: r.cat3, count: 0, rev: 0, purchase: 0, labor: 0, sga: 0 });
+        }
+        const g = group.get(key);
+        g.count += 1;
+        g.rev += r.rev;
+        g.purchase += r.purchase;
+        g.labor += r.labor;
+    });
+    return Array.from(group.values()).map(r => ensureUnpaidFields(r));
 }
 
 function normalizeCsvRows(rawRows, fields) {
@@ -798,8 +1187,7 @@ function updateDataFromEditor() {
 
 function showSaveMsg() {
     const msg = document.getElementById('saveStatus');
-    msg.style.opacity = 1;
-    setTimeout(() => { msg.style.opacity = 0; }, 1500);
+    if (msg) { msg.style.opacity = 1; setTimeout(() => { msg.style.opacity = 0; }, 1500); }
 }
 
 // --- Dashboard Functions (기존 로직 유지) ---
@@ -1000,7 +1388,7 @@ function setupRevealAnimations() {
 }
 
 function setupTableTabs() {
-    const buttons = document.querySelectorAll('.tab-button');
+    const buttons = document.querySelectorAll('.tab-button[data-tab]');
     const panels = document.querySelectorAll('.tab-panel');
     if (buttons.length === 0 || panels.length === 0) return;
 
@@ -1012,6 +1400,48 @@ function setupTableTabs() {
             btn.classList.add('active');
             const panel = document.getElementById(target);
             if (panel) panel.classList.add('active');
+        });
+    });
+}
+
+function setupEditorDropdowns() {
+    const shells = [
+        { btn: 'editorMonthFilterBtn', shell: 'editorMonthFilterShell' },
+        { btn: 'editorSgaMonthFilterBtn', shell: 'editorSgaMonthFilterShell' }
+    ];
+    shells.forEach(({ btn, shell }) => {
+        const b = document.getElementById(btn);
+        const s = document.getElementById(shell);
+        if (!b || !s) return;
+        b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            shells.forEach(({ shell: id }) => {
+                const el = document.getElementById(id);
+                if (el && el !== s) el.classList.remove('is-open');
+            });
+            s.classList.toggle('is-open');
+        });
+    });
+    document.addEventListener('click', () => {
+        shells.forEach(({ shell: id }) => document.getElementById(id)?.classList.remove('is-open'));
+    });
+}
+
+function setupEditorTabs() {
+    const buttons = document.querySelectorAll('.tab-button[data-editor-tab]');
+    const panels = document.querySelectorAll('.editor-tab-panel');
+    if (buttons.length === 0 || panels.length === 0) return;
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.getAttribute('data-editor-tab');
+            editorActiveTab = tab;
+            buttons.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const panel = document.getElementById('editor-tab-' + tab);
+            if (panel) panel.classList.add('active');
+            renderEditorTab();
         });
     });
 }

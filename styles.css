@@ -382,6 +382,14 @@ body.alt4 .alt4-main {
     display: block;
 }
 
+.editor-tab-panel {
+    display: none;
+}
+
+.editor-tab-panel.active {
+    display: block;
+}
+
 .split-scroll .tab-panel {
     max-height: 60vh;
     overflow-y: auto;
@@ -563,6 +571,65 @@ select:focus {
 .select-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.editor-select-shell {
+    position: relative;
+    display: inline-flex;
+    min-width: 120px;
+}
+
+.editor-select-shell .select-button {
+    min-width: 120px;
+    padding: 8px 36px 8px 14px;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.editor-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    min-width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.editor-select-shell.is-open .editor-dropdown {
+    display: block;
+}
+
+.editor-dropdown-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.editor-dropdown-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text);
+    transition: background 0.15s;
+}
+
+.editor-dropdown-item:hover {
+    background: rgba(10, 132, 255, 0.1);
+}
+
+.editor-dropdown-item.is-selected {
+    background: rgba(10, 132, 255, 0.15);
+    color: var(--accent);
+}
+
+.editor-filter-label {
+    font-weight: 600;
+    color: var(--text);
 }
 
 .page {
