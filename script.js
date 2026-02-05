@@ -1033,7 +1033,7 @@ function tryParseProjectCsvAndAggregate(rawData, fields) {
         const cat1 = String(getVal('cat1') || '').trim();
         let cat2 = String(getVal('cat2') || '').trim();
         let cat3 = String(getVal('cat3') || '').trim();
-        if (cat2 === '관리건물' && (cat3 === '강남' || cat3 === '강서')) cat3 = '통합';
+        if (cat3 === '강남' || cat3 === '강서') cat3 = '통합';
         const progressStatus = String(getVal('progressStatus') || '').trim();
         if (progressStatus !== '완료') return;
         if (cat1 === '본사' || cat2 === '판관비') return;
@@ -1067,7 +1067,21 @@ function normalizeCsvRows(rawRows, fields) {
         if (mapped) rows.push(mapped);
     });
 
-    return rows;
+    // 관리건물 강남/강서 -> 통합 변환 후 동일 키 행 병합
+    const group = new Map();
+    rows.forEach(r => {
+        const key = `${r.month}|${r.cat1}|${r.cat2}|${r.cat3}`;
+        if (!group.has(key)) {
+            group.set(key, { ...r, count: 0, rev: 0, purchase: 0, labor: 0, sga: 0 });
+        }
+        const g = group.get(key);
+        g.count += r.count || 0;
+        g.rev += r.rev || 0;
+        g.purchase += r.purchase || 0;
+        g.labor += r.labor || 0;
+        g.sga += r.sga || 0;
+    });
+    return Array.from(group.values()).map(r => ensureUnpaidFields(r));
 }
 
 function buildHeaderMap(fields) {
@@ -1125,6 +1139,7 @@ function mapCsvRow(raw, headerMap) {
     row.cat1 = String(row.cat1 || '').trim();
     row.cat2 = String(row.cat2 || '').trim();
     row.cat3 = String(row.cat3 || '').trim();
+    if (row.cat3 === '강남' || row.cat3 === '강서') row.cat3 = '통합';
     row.buildingName = String(row.buildingName || '').trim();
     row.invoiceDate = String(row.invoiceDate || '').trim();
     row.progressStatus = String(row.progressStatus || '').trim();
