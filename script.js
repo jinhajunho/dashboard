@@ -187,6 +187,12 @@ function switchTab(tabName) {
     } else if (tabName === 'editor') {
         renderEditorTab();
     }
+
+    const menu = document.getElementById('settingsMenu');
+    if (menu) {
+        menu.classList.remove('is-open');
+        menu.setAttribute('aria-hidden', 'true');
+    }
 }
 
 // --- Editor Functions ---

@@ -43,25 +43,25 @@
                             <button class="pin-button" id="pinUnlockBtn" type="button">잠금 해제</button>
                         </div>
                         <div class="pin-status" id="pinStatus">잠금됨</div>
+                        <div class="sga-controls" id="sgaControls">
+                            <button class="settings-link" type="button" onclick="switchTab('editor')" id="editorSettingsLink">
+                                <i class="fas fa-table"></i> 데이터 관리
+                            </button>
+                            <div class="toggle-container" style="border-left: 4px solid #27ae60;">
+                                <span>판관비 반영</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="sgaToggle" checked onchange="renderAll()">
+                                    <span class="slider green-toggle"></span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                    <button class="settings-link" type="button" onclick="switchTab('editor')">
-                        <i class="fas fa-table"></i> 데이터 관리
-                    </button>
                     <button class="settings-link" type="button" onclick="switchTab('unpaid')">
                         <i class="fas fa-file-invoice-dollar"></i> 미수금 정산 관리
                     </button>
                     <button class="settings-link" type="button" onclick="switchTab('weekly')">
                         <i class="fas fa-calendar-week"></i> 주간보고
                     </button>
-                    <div class="sga-controls" id="sgaControls">
-                        <div class="toggle-container" style="border-left: 4px solid #27ae60;">
-                            <span>판관비 반영</span>
-                            <label class="switch">
-                                <input type="checkbox" id="sgaToggle" checked onchange="renderAll()">
-                                <span class="slider green-toggle"></span>
-                            </label>
-                        </div>
-                    </div>
                 </div>
             </div>
             <button class="nav-item theme-toggle" id="themeToggle" type="button" aria-label="다크 모드 전환">
