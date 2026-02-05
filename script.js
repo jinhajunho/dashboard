@@ -151,6 +151,12 @@ function isSgaRow(row) {
     return String(r.cat2 || '').trim() === '판관비' || String(r.cat1 || '').trim() === '본사' || (Number(r.sga) || 0) > 0;
 }
 
+function isUnpaidItemRow(row) {
+    const r = ensureUnpaidFields(row || {});
+    if (String(r.cat2 || '').trim() !== '관리건물') return false;
+    return !!(String(r.buildingName || '').trim() || String(r.projectName || '').trim() || String(r.invoiceDate || '').trim());
+}
+
 // 탭 전환 기능 (에디터는 PIN 입력한 사람만 접근 가능, 별도 로그인 없음)
 function switchTab(tabName) {
     // 에디터(데이터 관리)는 PIN 잠금 해제된 경우에만 진입 가능
@@ -427,7 +433,7 @@ function handleSgaCsvFileChange(event) {
                 saveToLocal();
                 updateFilterOptions();
                 renderAll();
-                alert('판관비 CSV 업로드가 완료되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + newRows.length + '건)');
+                alert('판관비 CSV 업로드가 완료되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + newRows.length + '건)' + (!editorPinValue ? '\n\n※ Supabase 반영을 위해 PIN을 입력해 주세요.' : ''));
             }
         });
     };
@@ -466,9 +472,10 @@ function deleteRow(idx) {
 }
 
 function resetData() {
-    if(confirm("모든 데이터를 초기화하고 기본값으로 복구하시겠습니까?")) {
+    if(confirm("실적·판관비를 초기화하시겠습니까? (미수금은 유지됩니다)")) {
+        const unpaidRows = globalData.filter(r => isUnpaidItemRow(r));
         localStorage.removeItem(STORAGE_KEY);
-        globalData = JSON.parse(JSON.stringify(defaultData));
+        globalData = [...unpaidRows];
         renderEditorTab();
         saveToLocal();
         updateFilterOptions();
@@ -960,7 +967,7 @@ function parseCsvFile(file) {
                 saveToLocal();
                 renderAll();
                 renderUnpaid();
-                alert('프로젝트관리 원본이 집계되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + aggregated.length + '행)');
+                alert('프로젝트관리 원본이 집계되었습니다. (업로드된 월만 반영, ' + uploadedMonths.length + '개월, ' + aggregated.length + '행)' + (!editorPinValue ? '\n\n※ Supabase 반영을 위해 PIN을 입력해 주세요.' : ''));
                 return;
             }
             const rows = normalizeCsvRows(rawData, fields);
@@ -975,7 +982,7 @@ function parseCsvFile(file) {
             saveToLocal();
             renderAll();
             renderUnpaid();
-            alert('CSV 업로드가 완료되었습니다. 기존 데이터가 업로드 파일로 초기화되었습니다.');
+            alert('CSV 업로드가 완료되었습니다. 기존 데이터가 업로드 파일로 초기화되었습니다.' + (!editorPinValue ? '\n\n※ Supabase 반영을 위해 PIN을 입력해 주세요.' : ''));
         },
         error: function() {
             alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
@@ -1173,11 +1180,12 @@ function syncToSupabaseDebounced() {
 async function syncToSupabase() {
     if (!isSupabaseConfigured() || !editorPinValue) return;
     const apiBase = window.API_BASE_URL || '';
+    const dataToSync = globalData.filter(r => !isUnpaidItemRow(r));
     try {
         const res = await fetch(apiBase + '/api/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: editorPinValue, data: globalData })
+            body: JSON.stringify({ pin: editorPinValue, data: dataToSync })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
