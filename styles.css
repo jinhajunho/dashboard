@@ -876,6 +876,40 @@ input:checked + .slider:before {
 input:checked + .slider.green-toggle { background-color: var(--success); }
 
 /* 데이터 편집기 스타일 */
+.editor-tab-panel { display: none; }
+.editor-tab-panel.active { display: block; }
+
+.editor-container .select-shell {
+    position: relative;
+}
+.editor-container .select-shell .editor-dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    min-width: 120px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    z-index: 100;
+    display: none;
+}
+.editor-container .select-shell.is-open .editor-dropdown-list {
+    display: block;
+}
+.editor-dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+.editor-dropdown-item:last-child { border-bottom: none; }
+.editor-dropdown-item:hover { background: rgba(0,0,0,0.05); }
+.editor-dropdown-item.is-selected { background: var(--accent); color: #fff; }
+
 .editor-container {
     background: var(--card);
     backdrop-filter: var(--glass);
