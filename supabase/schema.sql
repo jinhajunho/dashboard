@@ -15,29 +15,17 @@ create table if not exists public.dashboard_rows (
   created_at timestamptz default now()
 );
 
--- 미수금 전용 테이블 (건물명, 프로젝트명, 매출발행일, 공급가액)
+-- 미수금 전용 테이블 (건물명, 매출발행일, 공급가액만)
 create table if not exists public.unpaid_items (
   id uuid primary key default gen_random_uuid(),
   month text default '',
   building_name text default '',
-  project_name text default '',
   invoice_date text default '',
   supply_amount bigint default 0,
   created_at timestamptz default now()
 );
 alter table public.unpaid_items enable row level security;
 create policy "Anyone can read unpaid_items" on public.unpaid_items for select using (true);
-
--- 주간보고 (완료건/예정건, 최신 1건)
-create table if not exists public.weekly_report (
-  id uuid primary key default gen_random_uuid(),
-  week_label text default '',
-  complete_data jsonb default '[]',
-  scheduled_data jsonb default '[]',
-  created_at timestamptz default now()
-);
-alter table public.weekly_report enable row level security;
-create policy "Anyone can read weekly_report" on public.weekly_report for select using (true);
 
 -- RLS: 누구나 읽기 가능, 쓰기는 서비스 역할(API)만
 alter table public.dashboard_rows enable row level security;

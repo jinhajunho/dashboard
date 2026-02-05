@@ -366,7 +366,7 @@ function deleteSgaRow(idx) {
 }
 
 function resetSgaData() {
-    if (confirm('판관비 데이터를 모두 삭제하시겠습니까?')) {
+    if (confirm('판관비만 초기화하시겠습니까? (실적·미수금은 유지됩니다)')) {
         globalData = globalData.filter(r => !isSgaRow(r));
         renderEditorTab();
         saveToLocal();
@@ -461,9 +461,8 @@ function deleteRow(idx) {
 }
 
 function resetData() {
-    if(confirm("실적·판관비를 초기화하시겠습니까? (미수금은 유지됩니다)")) {
-        localStorage.removeItem(STORAGE_KEY);
-        globalData = [];
+    if(confirm("실적만 초기화하시겠습니까? (판관비·미수금은 유지됩니다)")) {
+        globalData = globalData.filter(r => isSgaRow(r));
         renderEditorTab();
         saveToLocal();
         updateFilterOptions();

@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>반듯한시공 경영실적관리</title>
-    <meta property="og:title" content="반듯한시공 경영실적관리">
-    <meta property="og:description" content="반듯한시공 경영실적">
+    <title>대시보드 Alt4 - 2열 스플릿</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -38,12 +36,6 @@
                     <i class="fas fa-gear"></i>
                 </button>
                 <div class="settings-menu" id="settingsMenu" aria-hidden="true">
-                    <button class="settings-link" type="button" onclick="switchTab('unpaid')">
-                        <i class="fas fa-file-invoice-dollar"></i> 미수금 정산 관리
-                    </button>
-                    <button class="settings-link" type="button" onclick="switchTab('weekly')">
-                        <i class="fas fa-calendar-week"></i> 주간보고
-                    </button>
                     <div class="pin-panel">
                         <div class="pin-title">판관비 설정 · 잠금설정</div>
                         <div class="pin-row">
@@ -52,8 +44,11 @@
                         </div>
                         <div class="pin-status" id="pinStatus">잠금됨</div>
                     </div>
-                    <button class="settings-link settings-link-pin" id="editorSettingsLink" type="button" onclick="switchTab('editor')" style="display:none;">
+                    <button class="settings-link" type="button" onclick="switchTab('editor')">
                         <i class="fas fa-table"></i> 데이터 관리
+                    </button>
+                    <button class="settings-link" type="button" onclick="switchTab('unpaid')">
+                        <i class="fas fa-file-invoice-dollar"></i> 미수금 정산 관리
                     </button>
                     <div class="sga-controls" id="sgaControls">
                         <div class="toggle-container" style="border-left: 4px solid #27ae60;">
@@ -151,12 +146,11 @@
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">미수금 CSV 업로드</div>
-                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 시 기존 미수금이 새로고침</div>
+                    <div class="upload-desc">건물명, 매출 발행일, 공급가액 컬럼이 포함된 CSV를 업로드하세요. 업로드 시 기존 미수금 데이터가 교체됩니다.</div>
                 </div>
                 <div class="upload-actions">
                     <input type="file" id="unpaidCsvInput" class="file-input" accept=".csv">
                     <button class="btn-upload" onclick="triggerUnpaidCsvInput()">파일 선택</button>
-                    <button class="btn-upload" onclick="downloadUnpaidCsv()">CSV 다운로드</button>
                 </div>
             </div>
             <div class="section">
@@ -167,51 +161,17 @@
                     <table id="unpaidTable" class="editor-table">
                         <thead>
                             <tr>
-                                <th class="col-center">순번</th>
-                                <th class="col-center">건물명</th>
-                                <th class="col-center">프로젝트명</th>
-                                <th class="col-center">매출 발행일</th>
+                                <th>순번</th>
+                                <th>건물명</th>
+                                <th>매출 발행일</th>
                                 <th class="col-num">공급가액 (VAT 별도)</th>
                             </tr>
                         </thead>
                         <tbody id="unpaidTableBody"></tbody>
                     </table>
                 </div>
-                <div id="unpaidSummary" class="unpaid-summary">
+                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
                     공급가액 합계: 0원 (VAT 별도)
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="page-weekly" class="page">
-        <div class="weekly-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
-            <h2 style="margin-bottom: 20px;">주간보고</h2>
-            <div class="editor-upload" style="margin-bottom: 24px;">
-                <div>
-                    <div class="upload-title">주간 CSV 업로드</div>
-                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 일 기준 금주 완료·차주 예정건 표시</div>
-                </div>
-                <div class="upload-actions">
-                    <input type="file" id="weeklyCsvInput" class="file-input" accept=".csv">
-                    <button class="btn-upload" onclick="triggerWeeklyCsvInput()">파일 선택</button>
-                </div>
-            </div>
-            <div id="weeklyReportArea" class="section">
-                <div id="weeklyReportContent" style="display: none;">
-                    <div id="weeklyReportWeek" class="weekly-week-label" style="margin-bottom: 12px; color: var(--muted); font-size: 0.9rem;"></div>
-                    <div id="weeklyCompleteSection" class="weekly-section">
-                        <div id="weeklyCompleteHeader" class="weekly-section-header">1. 공사 완료건(0건)</div>
-                        <ul id="weeklyCompleteList" class="weekly-list"></ul>
-                    </div>
-                    <div id="weeklyScheduledSection" class="weekly-section">
-                        <div id="weeklyScheduledHeader" class="weekly-section-header">2. 공사 예정(0건)</div>
-                        <ul id="weeklyScheduledList" class="weekly-list"></ul>
-                    </div>
-                    <button type="button" class="btn-upload" onclick="downloadWeeklyReport()" style="margin-top: 16px;">주간보고 다운로드 (CSV)</button>
-                </div>
-                <div id="weeklyReportEmpty" style="text-align: center; padding: 40px; color: var(--muted);">
-                    CSV를 업로드하면 주간보고가 표시됩니다.
                 </div>
             </div>
         </div>
@@ -221,98 +181,44 @@
         <div class="editor-container">
             <div class="editor-controls">
                 <div>
-                    <h2>📊 데이터 관리</h2>
+                    <h2>📊 데이터 관리 (Excel Mode)</h2>
                     <p style="color:#666; font-size:0.9rem;">여기서 데이터를 직접 수정하면 대시보드에 즉시 반영됩니다.</p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <span id="saveStatus" class="status-msg">✅ 저장 완료!</span>
-                    <button class="btn-add" onclick="addRowForActiveTab()">+ 행 추가</button>
-                    <button class="btn-reset" onclick="resetForActiveTab()">↻ 초기화</button>
+                    <button class="btn-add" onclick="addRow()">+ 행 추가</button>
+                    <button class="btn-reset" onclick="resetData()">↻ 초기화</button>
+                </div>
+
+            </div>
+            <div class="editor-upload">
+                <div>
+                    <div class="upload-title">엑셀/CSV 업로드</div>
+                    <div class="upload-desc">엑셀에서 CSV로 저장 후 업로드하세요.</div>
+                </div>
+                <div class="upload-actions">
+                    <input type="file" id="csvInput" class="file-input" accept=".csv">
+                    <button class="btn-upload" onclick="triggerCsvInput()">파일 선택</button>
                 </div>
             </div>
-            <div class="tab-buttons tab-buttons-editor" style="margin-bottom:16px;">
-                <button class="tab-button active" data-editor-tab="real">실적</button>
-                <button class="tab-button" data-editor-tab="sga">판관비</button>
-            </div>
-            <div class="editor-tab-panel active" id="editor-tab-real">
-                <div class="editor-upload">
-                    <div>
-                        <div class="upload-title">엑셀/CSV 업로드</div>
-                        <div class="upload-desc">1. 프로젝트관리-보고서-전체현황(날짜:매출발행일 기준) 엑셀다운로드 후 업로드<br>2. 업로드한 파일에 해당하는 월의 실적만 교체</div>
-                    </div>
-                    <div class="upload-actions">
-                        <input type="file" id="csvInput" class="file-input" accept=".csv">
-                        <button class="btn-upload" onclick="triggerCsvInput()">파일 선택</button>
-                        <button class="btn-upload" onclick="downloadRealCsv()">CSV 다운로드</button>
-                    </div>
-                </div>
-                <div class="editor-filter" style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-                    <span class="editor-filter-label">월별 보기</span>
-                    <div class="editor-select-shell" id="editorMonthFilterShell">
-                        <button type="button" class="select-button editor-select-btn" id="editorMonthFilterBtn">전체</button>
-                        <div class="editor-dropdown" id="editorMonthFilterDropdown">
-                            <div class="editor-dropdown-list" id="editorMonthFilterList"></div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="editorMonthFilter" value="ALL">
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="editor-table" id="editorTable">
-                        <thead>
-                            <tr>
-                                <th>삭제</th>
-                                <th>월 (YYYY-MM)</th>
-                                <th>대분류</th>
-                                <th>중분류</th>
-                                <th>소분류</th>
-                                <th>건수</th>
-                                <th>매출 (원)</th>
-                                <th>매입 (원)</th>
-                                <th>사업소득 (원)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="editorBody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="editor-tab-panel" id="editor-tab-sga">
-                <div class="editor-upload">
-                    <div>
-                        <div class="upload-title">엑셀/CSV 업로드</div>
-                        <div class="upload-desc">엑셀에서 CSV로 저장 후 업로드하세요. (판관비 행만 반영)</div>
-                    </div>
-                    <div class="upload-actions">
-                        <input type="file" id="sgaCsvInput" class="file-input" accept=".csv">
-                        <button class="btn-upload" onclick="triggerSgaCsvInput()">파일 선택</button>
-                        <button class="btn-upload" onclick="downloadSgaCsv()">CSV 다운로드</button>
-                    </div>
-                </div>
-                <div class="editor-filter" style="margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-                    <span class="editor-filter-label">월별 보기</span>
-                    <div class="editor-select-shell" id="editorSgaMonthFilterShell">
-                        <button type="button" class="select-button editor-select-btn" id="editorSgaMonthFilterBtn">전체</button>
-                        <div class="editor-dropdown" id="editorSgaMonthFilterDropdown">
-                            <div class="editor-dropdown-list" id="editorSgaMonthFilterList"></div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="editorSgaMonthFilter" value="ALL">
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="editor-table" id="sgaEditorTable">
-                        <thead>
-                            <tr>
-                                <th>삭제</th>
-                                <th>월 (YYYY-MM)</th>
-                                <th>대분류</th>
-                                <th>중분류</th>
-                                <th>소분류</th>
-                                <th>건수</th>
-                                <th>판관비 (원)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sgaEditorBody"></tbody>
-                    </table>
-                </div>
+            <div style="overflow-x:auto;">
+                <table class="editor-table" id="editorTable">
+                    <thead>
+                        <tr>
+                            <th>삭제</th>
+                            <th>월 (YYYY-MM)</th>
+                            <th>대분류</th>
+                            <th>중분류</th>
+                            <th>소분류</th>
+                            <th>건수</th>
+                            <th>매출 (원)</th>
+                            <th>매입 (원)</th>
+                            <th>사업소득 (원)</th>
+                            <th>판관비 (원)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editorBody"></tbody>
+                </table>
             </div>
         </div>
     </div>

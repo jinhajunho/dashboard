@@ -14,9 +14,7 @@
 ## 1. Supabase 설정
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. **SQL Editor**에서 `supabase/schema.sql` 내용 실행 (테이블·RLS 생성)
-3. **기존 프로젝트**: 
-   - `supabase/migrations/20260203_unpaid_items_table.sql` 실행 (unpaid_items 테이블)
-   - `supabase/migrations/20260203_weekly_report_table.sql` 실행 (주간보고 테이블)
+3. **기존 프로젝트**: `supabase/migrations/20260203_unpaid_items_table.sql` 실행 (unpaid_items 테이블 생성, dashboard_rows 정리)
 4. **Settings → API**에서 확인 (Project URL, anon key, service_role key):
    - Project URL → `SUPABASE_URL`
    - anon public key → `SUPABASE_ANON_KEY` (프론트 읽기용)
