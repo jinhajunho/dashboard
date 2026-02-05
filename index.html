@@ -151,7 +151,7 @@
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">미수금 CSV 업로드</div>
-                    <div class="upload-desc">프로젝트관리-엑셀다운로드 받아 업로드하세요. 건물명·프로젝트명·매출발행일·공급가액 포함. 업로드 시 기존 미수금이 교체됩니다.</div>
+                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 시 기존 미수금이 새로고침</div>
                 </div>
                 <div class="upload-actions">
                     <input type="file" id="unpaidCsvInput" class="file-input" accept=".csv">
@@ -190,7 +190,7 @@
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">주간 CSV 업로드</div>
-                    <div class="upload-desc">진행일, 완료일, 진행상태, 건물명, 공사명 컬럼이 포함된 CSV를 업로드하세요. 업로드한 날(한국 시간) 기준 이번 주 완료건·다음 주 예정건이 표시됩니다.</div>
+                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 일 기준 금주 완료·차주 예정건 표시</div>
                 </div>
                 <div class="upload-actions">
                     <input type="file" id="weeklyCsvInput" class="file-input" accept=".csv">
@@ -238,13 +238,7 @@
                 <div class="editor-upload">
                     <div>
                         <div class="upload-title">엑셀/CSV 업로드</div>
-                        <div class="upload-desc">
-                            <strong>① 프로젝트관리 원본</strong> · 보고서-전체현황(날짜:매출발행일 기준) 다운로드 후 업로드<br>
-                            · 업로드한 파일에 있는 월의 실적만 교체 · 나머지 월·판관비는 유지<br>
-                            · 강남/강서 → 통합 합산 · 2025-12 이후 완료건만<br><br>
-                            <strong>② 결산 형식 CSV</strong> (월, 대분류, 중분류, 소분류, 건수, 매출, 매입, 사업소득, 판관비)<br>
-                            · 실적+판관비 전체가 새 파일로 교체됨
-                        </div>
+                        <div class="upload-desc">1. 프로젝트관리-보고서-전체현황(날짜:매출발행일 기준) 엑셀다운로드 후 업로드<br>2. 업로드한 파일에 해당하는 월의 실적만 교체</div>
                     </div>
                     <div class="upload-actions">
                         <input type="file" id="csvInput" class="file-input" accept=".csv">
