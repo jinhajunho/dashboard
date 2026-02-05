@@ -1,6 +1,7 @@
 /* global Chart, ChartDataLabels */
 Chart.register(ChartDataLabels);
 let globalData = [];
+let unpaidItemsData = [];
 let trendChart = null;
 let revealObserver = null;
 let chartObserver = null;
@@ -59,28 +60,15 @@ async function loadData() {
             ]);
             const dashData = dashRes.data || [];
             const unpaidRaw = unpaidRes.data || [];
-            const unpaidData = unpaidRaw.map(r => ensureUnpaidFields({
+            globalData = dashData.map(r => dbRowToLocal({ ...r, building_name: '', invoice_date: '', progress_status: '', payment_status: '', payment_amount: 0, supply_amount: 0 }));
+            globalData = globalData.map(ensureUnpaidFields).sort((a, b) => a.month.localeCompare(b.month));
+            unpaidItemsData = unpaidRaw.map(r => ensureUnpaidFields({
                 month: r.month ?? '',
-                cat1: '',
-                cat2: '관리건물',
-                cat3: '',
-                count: 1,
-                rev: Number(r.supply_amount) || 0,
-                purchase: 0,
-                labor: 0,
-                sga: 0,
                 buildingName: r.building_name ?? '',
                 projectName: r.project_name ?? '',
                 invoiceDate: r.invoice_date ?? '',
-                progressStatus: r.progress_status ?? '',
-                paymentStatus: r.payment_status ?? '',
-                paymentAmount: Number(r.payment_amount) || 0,
                 supplyAmount: Number(r.supply_amount) || 0
             }));
-            const withoutUnpaid = dashData.filter(r => String(r.cat2 || '').trim() !== '관리건물');
-            globalData = withoutUnpaid.map(r => dbRowToLocal({ ...r, building_name: '', invoice_date: '', progress_status: '', payment_status: '', payment_amount: 0, supply_amount: 0 }));
-            unpaidData.forEach(u => globalData.push(u));
-            globalData.sort((a, b) => a.month.localeCompare(b.month));
             return;
         } catch (e) {
             console.warn('Supabase load failed', e);
@@ -88,7 +76,8 @@ async function loadData() {
     }
     const saved = localStorage.getItem(STORAGE_KEY);
     globalData = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
-    globalData = globalData.map(ensureUnpaidFields);
+    globalData = globalData.filter(r => !isUnpaidItemRow(r)).map(ensureUnpaidFields);
+    unpaidItemsData = [];
 }
 
 async function loadWeeklyReport() {
@@ -473,9 +462,8 @@ function deleteRow(idx) {
 
 function resetData() {
     if(confirm("실적·판관비를 초기화하시겠습니까? (미수금은 유지됩니다)")) {
-        const unpaidRows = globalData.filter(r => isUnpaidItemRow(r));
         localStorage.removeItem(STORAGE_KEY);
-        globalData = [...unpaidRows];
+        globalData = [];
         renderEditorTab();
         saveToLocal();
         updateFilterOptions();
@@ -775,9 +763,8 @@ function downloadSgaCsv() {
 }
 
 function downloadUnpaidCsv() {
-    const filtered = globalData.filter(row => {
+    const filtered = unpaidItemsData.filter(row => {
         const r = ensureUnpaidFields(row);
-        if (String(r.cat2 || '').trim() !== '관리건물') return false;
         const building = String(r.buildingName || '').trim();
         const supply = Number(r.supplyAmount) || 0;
         return !!(building || r.invoiceDate || supply > 0);
@@ -892,6 +879,7 @@ function parseUnpaidCsvText(csvText, fileName) {
                 const payAmt = toNumber(payAmtVal);
                 const isUnpaid = hasInvoiceDate && (payStatus === '미수' || payAmt === 0 || payAmtEmpty);
                 if (isManaged && isComplete && isUnpaid && (row.building_name || row.invoice_date || row.supply_amount > 0)) {
+                    if (!row.month && row.invoice_date) row.month = parseDateToMonth(row.invoice_date);
                     rows.push(row);
                 }
             });
@@ -915,7 +903,13 @@ function parseUnpaidCsvText(csvText, fileName) {
                     alert('저장 실패: ' + (json.detail || json.error || '오류가 발생했습니다.'));
                     return;
                 }
-                await loadData();
+                unpaidItemsData = rows.map(r => ensureUnpaidFields({
+                    month: r.month || parseDateToMonth(r.invoice_date || r.invoiceDate) || '',
+                    buildingName: r.building_name || r.buildingName || '',
+                    projectName: r.project_name || r.projectName || '',
+                    invoiceDate: r.invoice_date || r.invoiceDate || '',
+                    supplyAmount: Number(r.supply_amount ?? r.supplyAmount) || 0
+                }));
                 renderUnpaid();
                 alert('미수금 데이터가 업로드되었습니다. (' + rows.length + '건)');
             } catch (e) {
@@ -1180,12 +1174,11 @@ function syncToSupabaseDebounced() {
 async function syncToSupabase() {
     if (!isSupabaseConfigured() || !editorPinValue) return;
     const apiBase = window.API_BASE_URL || '';
-    const dataToSync = globalData.filter(r => !isUnpaidItemRow(r));
     try {
         const res = await fetch(apiBase + '/api/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: editorPinValue, data: dataToSync })
+            body: JSON.stringify({ pin: editorPinValue, data: globalData })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -1493,14 +1486,12 @@ function shouldExcludeFromAvg(row, useSmartAvg, limit, unitPrice) {
 }
 
 function renderUnpaid() {
-    const filtered = globalData.filter(row => {
+    const filtered = unpaidItemsData.filter(row => {
         const r = ensureUnpaidFields(row);
-        if (String(r.cat2 || '').trim() !== '관리건물') return false;
         const building = String(r.buildingName || '').trim();
         const supply = Number(r.supplyAmount) || 0;
-        if (!building && supply === 0) return false;
-        return true;
-    });
+        return !!(building || r.invoiceDate || supply > 0);
+    }).sort((a, b) => (a.invoiceDate || '').localeCompare(b.invoiceDate || ''));
 
     const tbody = document.getElementById('unpaidTableBody');
     const summaryEl = document.getElementById('unpaidSummary');
