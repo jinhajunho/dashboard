@@ -50,6 +50,9 @@
                     <button class="settings-link" type="button" onclick="switchTab('unpaid')">
                         <i class="fas fa-file-invoice-dollar"></i> 미수금 정산 관리
                     </button>
+                    <button class="settings-link" type="button" onclick="switchTab('weekly')">
+                        <i class="fas fa-calendar-week"></i> 주간보고
+                    </button>
                     <div class="sga-controls" id="sgaControls">
                         <div class="toggle-container" style="border-left: 4px solid #27ae60;">
                             <span>판관비 반영</span>
@@ -172,6 +175,39 @@
                 </div>
                 <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
                     공급가액 합계: 0원 (VAT 별도)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-weekly" class="page">
+        <div class="weekly-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+            <h2 style="margin-bottom: 20px;">주간보고</h2>
+            <div class="editor-upload" style="margin-bottom: 24px;">
+                <div>
+                    <div class="upload-title">주간 CSV 업로드</div>
+                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 일 기준 금주 완료·차주 예정건 표시</div>
+                </div>
+                <div class="upload-actions">
+                    <input type="file" id="weeklyCsvInput" class="file-input" accept=".csv">
+                    <button class="btn-upload" onclick="triggerWeeklyCsvInput()">파일 선택</button>
+                </div>
+            </div>
+            <div id="weeklyReportArea" class="section">
+                <div id="weeklyReportContent" style="display: none;">
+                    <div id="weeklyReportWeek" class="weekly-week-label" style="margin-bottom: 12px; color: var(--muted); font-size: 0.9rem;"></div>
+                    <div id="weeklyCompleteSection" class="weekly-section">
+                        <div id="weeklyCompleteHeader" class="weekly-section-header">1. 공사 완료건(0건)</div>
+                        <ul id="weeklyCompleteList" class="weekly-list"></ul>
+                    </div>
+                    <div id="weeklyScheduledSection" class="weekly-section">
+                        <div id="weeklyScheduledHeader" class="weekly-section-header">2. 공사 예정(0건)</div>
+                        <ul id="weeklyScheduledList" class="weekly-list"></ul>
+                    </div>
+                    <button type="button" class="btn-upload" onclick="downloadWeeklyReport()" style="margin-top: 16px;">주간보고 다운로드 (CSV)</button>
+                </div>
+                <div id="weeklyReportEmpty" style="text-align: center; padding: 40px; color: var(--muted);">
+                    CSV를 업로드하면 주간보고가 표시됩니다.
                 </div>
             </div>
         </div>
