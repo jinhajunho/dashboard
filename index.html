@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
-    <title>대시보드 Alt4 - 2열 스플릿</title>
+    <title>반듯한시공 경영실적관리</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -146,15 +146,25 @@
 
     <div id="page-unpaid" class="page">
         <div class="unpaid-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
-            <h2 style="margin-bottom: 20px;">미수금 정산 관리</h2>
+            <div class="editor-controls" style="margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin:0;">미수금 정산 관리</h2>
+                    <p style="color:#666; font-size:0.9rem; margin:4px 0 0 0;">관리건물·완료된 미수 건을 관리합니다.</p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button class="btn-add" onclick="addUnpaidRow()">+ 행 추가</button>
+                    <button class="btn-reset" onclick="resetUnpaidData()">↻ 초기화</button>
+                </div>
+            </div>
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">미수금 CSV 업로드</div>
-                    <div class="upload-desc">건물명, 매출 발행일, 공급가액 컬럼이 포함된 CSV를 업로드하세요. 업로드 시 기존 미수금 데이터가 교체됩니다.</div>
+                    <div class="upload-desc">1. 프로젝트관리-엑셀다운로드 후 업로드<br>2. 업로드 시 기존 미수금 초기화</div>
                 </div>
                 <div class="upload-actions">
                     <input type="file" id="unpaidCsvInput" class="file-input" accept=".csv">
                     <button class="btn-upload" onclick="triggerUnpaidCsvInput()">파일 선택</button>
+                    <button class="btn-upload" onclick="downloadUnpaidCsv()">미수금 다운로드 (CSV)</button>
                 </div>
             </div>
             <div class="section">
@@ -165,25 +175,34 @@
                     <table id="unpaidTable" class="editor-table">
                         <thead>
                             <tr>
+                                <th>삭제</th>
                                 <th>순번</th>
                                 <th>건물명</th>
-                                <th>매출 발행일</th>
+                                <th>프로젝트명</th>
+                                <th>매출발행일</th>
                                 <th class="col-num">공급가액 (VAT 별도)</th>
                             </tr>
                         </thead>
                         <tbody id="unpaidTableBody"></tbody>
                     </table>
                 </div>
-                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem;">
-                    공급가액 합계: 0원 (VAT 별도)
-                </div>
+                <div id="unpaidSummary" style="margin-top: 16px; font-weight: 600; font-size: 1rem; text-align: right;">공급가액 합계: 0원 (VAT 별도)</div>
             </div>
         </div>
     </div>
 
     <div id="page-weekly" class="page">
         <div class="weekly-container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
-            <h2 style="margin-bottom: 20px;">주간보고</h2>
+            <div class="editor-controls" style="margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin:0;">주간보고</h2>
+                    <p style="color:#666; font-size:0.9rem; margin:4px 0 0 0;">금주 완료·차주 예정 건을 관리합니다.</p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button class="btn-add" onclick="addWeeklyItem()">+ 항목 추가</button>
+                    <button class="btn-reset" onclick="resetWeeklyData()">↻ 초기화</button>
+                </div>
+            </div>
             <div class="editor-upload" style="margin-bottom: 24px;">
                 <div>
                     <div class="upload-title">주간 CSV 업로드</div>
@@ -192,6 +211,7 @@
                 <div class="upload-actions">
                     <input type="file" id="weeklyCsvInput" class="file-input" accept=".csv">
                     <button class="btn-upload" onclick="triggerWeeklyCsvInput()">파일 선택</button>
+                    <button class="btn-upload" onclick="downloadWeeklyReport()">주간보고 다운로드 (CSV)</button>
                 </div>
             </div>
             <div id="weeklyReportArea" class="section">
@@ -205,7 +225,6 @@
                         <div id="weeklyScheduledHeader" class="weekly-section-header">2. 공사 예정(0건)</div>
                         <ul id="weeklyScheduledList" class="weekly-list"></ul>
                     </div>
-                    <button type="button" class="btn-upload" onclick="downloadWeeklyReport()" style="margin-top: 16px;">주간보고 다운로드 (CSV)</button>
                 </div>
                 <div id="weeklyReportEmpty" style="text-align: center; padding: 40px; color: var(--muted);">
                     CSV를 업로드하면 주간보고가 표시됩니다.

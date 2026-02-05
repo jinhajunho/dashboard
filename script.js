@@ -715,8 +715,8 @@ function renderWeekly() {
         if (weekLabelEl) weekLabelEl.textContent = `기준 주: ${weekLabel || getKoreaWeekRange().weekLabel}`;
         completeHeader.textContent = `1. 공사 완료건(${complete.length}건)`;
         scheduledHeader.textContent = `2. 공사 예정(${scheduled.length}건)`;
-        completeList.innerHTML = complete.map(i => `<li>${escapeAttr(i.label)}</li>`).join('');
-        scheduledList.innerHTML = scheduled.map(i => `<li>${escapeAttr(i.label)}</li>`).join('');
+        completeList.innerHTML = complete.map((i, idx) => `<li><span>${escapeAttr(i.label)}</span> <button class="btn-del" style="margin-left:8px; padding:2px 6px; font-size:0.75rem;" onclick="deleteWeeklyItem('complete', ${idx})">삭제</button></li>`).join('');
+        scheduledList.innerHTML = scheduled.map((i, idx) => `<li><span>${escapeAttr(i.label)}</span> <button class="btn-del" style="margin-left:8px; padding:2px 6px; font-size:0.75rem;" onclick="deleteWeeklyItem('scheduled', ${idx})">삭제</button></li>`).join('');
     }
 }
 
@@ -1490,12 +1490,7 @@ function shouldExcludeFromAvg(row, useSmartAvg, limit, unitPrice) {
 }
 
 function renderUnpaid() {
-    const filtered = unpaidItemsData.filter(row => {
-        const r = ensureUnpaidFields(row);
-        const building = String(r.buildingName || '').trim();
-        const supply = Number(r.supplyAmount) || 0;
-        return !!(building || r.invoiceDate || supply > 0);
-    }).sort((a, b) => (a.invoiceDate || '').localeCompare(b.invoiceDate || ''));
+    const filtered = [...unpaidItemsData].sort((a, b) => (a.invoiceDate || '').localeCompare(b.invoiceDate || ''));
 
     const tbody = document.getElementById('unpaidTableBody');
     const summaryEl = document.getElementById('unpaidSummary');
@@ -1507,21 +1502,112 @@ function renderUnpaid() {
         const r = ensureUnpaidFields(row);
         const supply = Number(r.supplyAmount) || 0;
         totalSupply += supply;
+        const globalIdx = unpaidItemsData.indexOf(row);
         html += `<tr>
+            <td style="text-align:center;"><button class="btn-del" onclick="deleteUnpaidRow(${globalIdx})">✖</button></td>
             <td class="col-center">${idx + 1}</td>
-            <td class="col-center">${escapeAttr(r.buildingName) || '-'}</td>
-            <td class="col-center">${escapeAttr(r.projectName) || '-'}</td>
-            <td class="col-center">${escapeAttr(r.invoiceDate) || '-'}</td>
-            <td class="col-num">${supply.toLocaleString()}</td>
+            <td><input type="text" value="${escapeAttr(r.buildingName)}" onchange="editUnpaidData(${globalIdx}, 'buildingName', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.projectName)}" onchange="editUnpaidData(${globalIdx}, 'projectName', this.value)"></td>
+            <td><input type="text" value="${escapeAttr(r.invoiceDate)}" onchange="editUnpaidData(${globalIdx}, 'invoiceDate', this.value)"></td>
+            <td><input type="number" value="${supply}" onchange="editUnpaidData(${globalIdx}, 'supplyAmount', this.value)"></td>
         </tr>`;
     });
 
     if (filtered.length === 0) {
-        html = '<tr><td colspan="5" style="text-align:center; padding:20px;">미수 건이 없습니다.</td></tr>';
+        html = '<tr><td colspan="6" style="text-align:center; padding:20px;">미수 건이 없습니다.</td></tr>';
     }
 
     tbody.innerHTML = html;
     summaryEl.textContent = `공급가액 합계: ${totalSupply.toLocaleString()}원 (VAT 별도)`;
+}
+
+function addUnpaidRow() {
+    unpaidItemsData.push({
+        month: '', buildingName: '', projectName: '', invoiceDate: '', supplyAmount: 0
+    });
+    renderUnpaid();
+    syncUnpaidToSupabase();
+}
+
+function deleteUnpaidRow(idx) {
+    if (confirm('이 행을 삭제하시겠습니까?')) {
+        unpaidItemsData.splice(idx, 1);
+        renderUnpaid();
+        syncUnpaidToSupabase();
+    }
+}
+
+function editUnpaidData(idx, key, val) {
+    if (key === 'supplyAmount') unpaidItemsData[idx][key] = Number(val) || 0;
+    else unpaidItemsData[idx][key] = String(val || '').trim();
+    if (idx >= 0 && unpaidItemsData[idx].invoiceDate) {
+        unpaidItemsData[idx].month = parseDateToMonth(unpaidItemsData[idx].invoiceDate) || unpaidItemsData[idx].month || '';
+    }
+    syncUnpaidToSupabase();
+}
+
+async function syncUnpaidToSupabase() {
+    if (!isSupabaseConfigured()) return;
+    const apiBase = window.API_BASE_URL || '';
+    const rows = unpaidItemsData.map(r => ({
+        month: r.month || parseDateToMonth(r.invoiceDate) || '',
+        building_name: r.buildingName || '',
+        project_name: r.projectName || '',
+        invoice_date: r.invoiceDate || '',
+        supply_amount: Number(r.supplyAmount) || 0
+    }));
+    try {
+        const res = await fetch(apiBase + '/api/sync-unpaid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: rows })
+        });
+        if (!res.ok) console.warn('미수금 저장 실패:', await res.text());
+    } catch (e) { console.warn('미수금 저장 오류:', e); }
+}
+
+function resetUnpaidData() {
+    if (!confirm('미수금 데이터를 초기화하시겠습니까?')) return;
+    unpaidItemsData = [];
+    renderUnpaid();
+    syncUnpaidToSupabase();
+    alert('미수금이 초기화되었습니다.');
+}
+
+function addWeeklyItem() {
+    const week = getKoreaWeekRange();
+    weeklyReportData.complete.push({ building: '', project: '', label: '-' });
+    weeklyReportData.weekLabel = weeklyReportData.weekLabel || week.weekLabel;
+    renderWeekly();
+    syncWeeklyToSupabase();
+}
+
+function deleteWeeklyItem(type, idx) {
+    if (!confirm('이 항목을 삭제하시겠습니까?')) return;
+    weeklyReportData[type].splice(idx, 1);
+    renderWeekly();
+    syncWeeklyToSupabase();
+}
+
+function resetWeeklyData() {
+    if (!confirm('주간보고를 초기화하시겠습니까?')) return;
+    weeklyReportData = { complete: [], scheduled: [], weekLabel: getKoreaWeekRange().weekLabel };
+    renderWeekly();
+    syncWeeklyToSupabase();
+    alert('주간보고가 초기화되었습니다.');
+}
+
+async function syncWeeklyToSupabase() {
+    if (!isSupabaseConfigured()) return;
+    const apiBase = window.API_BASE_URL || '';
+    try {
+        const res = await fetch(apiBase + '/api/sync-weekly', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: weeklyReportData })
+        });
+        if (!res.ok) console.warn('주간보고 저장 실패:', await res.text());
+    } catch (e) { console.warn('주간보고 저장 오류:', e); }
 }
 
 function getKoreaYearMonth() {
