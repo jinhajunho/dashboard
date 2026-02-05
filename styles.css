@@ -124,6 +124,16 @@ body.alt4 .nav-bar {
     font-weight: 700;
     color: var(--text);
     margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-logo-icon {
+    height: 28px;
+    width: 28px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .nav-home {
