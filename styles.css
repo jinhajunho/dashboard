@@ -1011,6 +1011,7 @@ input:checked + .slider.green-toggle { background-color: var(--success); }
 .upload-desc {
     font-size: 0.85rem;
     color: var(--muted);
+    line-height: 1.6;
 }
 
 .upload-actions {

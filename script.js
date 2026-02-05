@@ -296,7 +296,6 @@ function renderEditor() {
             <td><input type="number" value="${r.rev}" onchange="editData(${idx}, 'rev', this.value)"></td>
             <td><input type="number" value="${r.purchase}" onchange="editData(${idx}, 'purchase', this.value)"></td>
             <td><input type="number" value="${r.labor}" onchange="editData(${idx}, 'labor', this.value)"></td>
-            <td><input type="number" value="${r.sga}" onchange="editData(${idx}, 'sga', this.value)"></td>
         `;
         tbody.appendChild(tr);
     });
@@ -324,9 +323,6 @@ function renderSgaEditor() {
             <td><input type="text" value="${escapeAttr(r.cat2)}" onchange="editSgaData(${idx}, 'cat2', this.value)"></td>
             <td><input type="text" value="${escapeAttr(r.cat3)}" onchange="editSgaData(${idx}, 'cat3', this.value)"></td>
             <td><input type="number" value="${r.count}" onchange="editSgaData(${idx}, 'count', this.value)"></td>
-            <td><input type="number" value="${r.rev}" onchange="editSgaData(${idx}, 'rev', this.value)"></td>
-            <td><input type="number" value="${r.purchase}" onchange="editSgaData(${idx}, 'purchase', this.value)"></td>
-            <td><input type="number" value="${r.labor}" onchange="editSgaData(${idx}, 'labor', this.value)"></td>
             <td><input type="number" value="${r.sga}" onchange="editSgaData(${idx}, 'sga', this.value)"></td>
         `;
         tbody.appendChild(tr);
@@ -477,6 +473,8 @@ function resetData() {
         saveToLocal();
         updateFilterOptions();
         renderAll();
+        if (syncDebounceTimer) { clearTimeout(syncDebounceTimer); syncDebounceTimer = null; }
+        syncToSupabase();
         alert("초기화되었습니다.");
     }
 }
