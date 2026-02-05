@@ -659,25 +659,24 @@ function parseWeeklyCsvText(csvText, fileName, retryWithUtf8, file) {
 
             if (willSave) {
                 const apiBase = window.API_BASE_URL || '';
-                const ctrl = new AbortController();
-                const timeout = setTimeout(() => ctrl.abort(), 15000);
-                fetch(apiBase + '/api/sync-weekly', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: weeklyReportData }),
-                    signal: ctrl.signal
-                }).then(res => {
-                    clearTimeout(timeout);
+                try {
+                    const res = await fetch(apiBase + '/api/sync-weekly', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: weeklyReportData })
+                    });
+                    const json = await res.json().catch(() => ({}));
                     if (res.ok) {
                         alert('주간보고가 반영되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n다른 기기에서도 확인할 수 있습니다.');
                     } else {
-                        alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크를 확인해 주세요.');
+                        const errMsg = json.detail || json.error || 'HTTP ' + res.status;
+                        console.error('주간보고 저장 실패:', res.status, json);
+                        alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패: ' + errMsg);
                     }
-                }).catch(e => {
-                    clearTimeout(timeout);
-                    console.warn('주간보고 Supabase 저장 오류:', e);
-                    alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패. 껐다 켜면 사라집니다. 네트워크를 확인해 주세요.');
-                });
+                } catch (e) {
+                    console.error('주간보고 Supabase 저장 오류:', e);
+                    alert('주간보고 표시됨 (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)\n\n⚠️ 저장 실패: ' + (e.message || '네트워크 오류. 껐다 켜면 사라집니다.'));
+                }
             } else {
                 alert('주간보고가 표시되었습니다. (완료 ' + complete.length + '건, 예정 ' + scheduled.length + '건)');
             }
