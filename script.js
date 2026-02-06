@@ -715,25 +715,9 @@ function renderWeekly() {
         if (weekLabelEl) weekLabelEl.textContent = `기준 주: ${weekLabel || getKoreaWeekRange().weekLabel}`;
         completeHeader.textContent = `1. 공사 완료건(${complete.length}건)`;
         scheduledHeader.textContent = `2. 공사 예정(${scheduled.length}건)`;
-        completeList.innerHTML = complete.map((i, idx) => {
-            const b = escapeAttr(i.building ?? '');
-            const p = escapeAttr(i.project ?? '');
-            return `<tr><td style="text-align:center;"><button class="btn-del" onclick="deleteWeeklyItem('complete', ${idx})">✖</button></td><td><input type="text" value="${b}" onchange="editWeeklyItem('complete', ${idx}, 'building', this.value)"></td><td><input type="text" value="${p}" onchange="editWeeklyItem('complete', ${idx}, 'project', this.value)"></td></tr>`;
-        }).join('');
-        scheduledList.innerHTML = scheduled.map((i, idx) => {
-            const b = escapeAttr(i.building ?? '');
-            const p = escapeAttr(i.project ?? '');
-            return `<tr><td style="text-align:center;"><button class="btn-del" onclick="deleteWeeklyItem('scheduled', ${idx})">✖</button></td><td><input type="text" value="${b}" onchange="editWeeklyItem('scheduled', ${idx}, 'building', this.value)"></td><td><input type="text" value="${p}" onchange="editWeeklyItem('scheduled', ${idx}, 'project', this.value)"></td></tr>`;
-        }).join('');
+        completeList.innerHTML = complete.map((i, idx) => `<li><span>${escapeAttr(i.label)}</span> <button class="btn-del" style="margin-left:8px; padding:2px 6px; font-size:0.75rem;" onclick="deleteWeeklyItem('complete', ${idx})">삭제</button></li>`).join('');
+        scheduledList.innerHTML = scheduled.map((i, idx) => `<li><span>${escapeAttr(i.label)}</span> <button class="btn-del" style="margin-left:8px; padding:2px 6px; font-size:0.75rem;" onclick="deleteWeeklyItem('scheduled', ${idx})">삭제</button></li>`).join('');
     }
-}
-
-function editWeeklyItem(type, idx, field, value) {
-    if (!weeklyReportData[type] || !weeklyReportData[type][idx]) return;
-    weeklyReportData[type][idx][field] = value;
-    const item = weeklyReportData[type][idx];
-    item.label = (item.building && item.project) ? `${item.building} - ${item.project}` : (item.building || item.project || '-');
-    syncWeeklyToSupabase();
 }
 
 function toCsvRow(cells) {
