@@ -17,7 +17,7 @@ window.SUPABASE_ANON_KEY = ${JSON.stringify(anon)};
 `;
 fs.writeFileSync(path.join(publicDir, 'config.js'), content, 'utf8');
 
-['index.html', 'script.js', 'styles.css', 'favicon.ico'].forEach((file) => {
+['index.html', 'script.js', 'styles.css', 'favicon.ico', 'logo-dark.ico'].forEach((file) => {
   const src = path.join(root, file);
   const dest = path.join(publicDir, file);
   if (fs.existsSync(src)) {

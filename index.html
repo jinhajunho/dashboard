@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="alternate icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="32x32">
     <title>반듯한시공 경영실적관리</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -19,7 +19,7 @@
 <div class="nav-bar alt4-nav">
     <div class="nav-inner">
         <div class="nav-left">
-            <div class="nav-logo nav-home" onclick="switchTab('dashboard')"><img src="/favicon.ico" alt="" class="nav-logo-icon"> 반듯한시공 경영실적분석</div>
+            <div class="nav-logo nav-home" onclick="switchTab('dashboard')"><span class="nav-logo-icon-wrap"><img src="/favicon.ico" alt="" class="nav-logo-icon nav-logo-light"><img src="/logo-dark.ico" alt="" class="nav-logo-icon nav-logo-dark"></span> 반듯한시공 경영실적분석</div>
             <div class="filter-box nav-period">
                 <div class="select-shell">
                     <select id="monthFilter" onchange="renderAll()" aria-hidden="true">

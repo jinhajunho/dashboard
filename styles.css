@@ -129,11 +129,35 @@ body.alt4 .nav-bar {
     gap: 8px;
 }
 
+.nav-logo-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.85);
+}
+body.dark .nav-logo-icon-wrap {
+    background: rgba(17, 24, 39, 0.98);
+}
 .nav-logo-icon {
     height: 28px;
     width: 28px;
     object-fit: contain;
     flex-shrink: 0;
+    mix-blend-mode: multiply;
+}
+.nav-logo-dark {
+    display: none;
+}
+body.dark .nav-logo-light {
+    display: none;
+}
+body.dark .nav-logo-dark {
+    display: inline;
 }
 
 .nav-home {
