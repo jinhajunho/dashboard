@@ -140,15 +140,11 @@ body.alt4 .nav-bar {
     flex-shrink: 0;
     background: rgba(255, 255, 255, 0.85);
 }
-body.dark .nav-logo-icon-wrap {
-    background: rgba(17, 24, 39, 0.98);
-}
 .nav-logo-icon {
     height: 28px;
     width: 28px;
     object-fit: contain;
     flex-shrink: 0;
-    mix-blend-mode: multiply;
 }
 
 .nav-home {
